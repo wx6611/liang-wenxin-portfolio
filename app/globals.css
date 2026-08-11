@@ -1,5 +1,13 @@
 @import "tailwindcss";
 
+@font-face {
+  font-family: "Alimama FangYuanTi VF";
+  src: url("/fonts/AlimamaFangYuanTiVF-Thin.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+}
+
 :root {
   --paper: #e9e6df;
   --ink: #1d1d1b;
@@ -126,6 +134,7 @@ summary {
   width: 100%;
   margin: 0;
   flex-direction: column;
+  font-family: "Alimama FangYuanTi VF", Arial, "Helvetica Neue", sans-serif;
   font-weight: 500;
   font-size: clamp(62px, 10.55vw, 162px);
   line-height: 0.87;
