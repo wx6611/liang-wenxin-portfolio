@@ -66,3 +66,16 @@ footer{flex-direction:column;gap:10px}
 .section-03{min-height:78vh;position:relative}.section-03 .section-copy{max-width:900px;margin-left:6vw;padding-top:4vh}.section-03 .statement{max-width:1000px;font-size:clamp(48px,6.5vw,100px);line-height:1.02}.section-03 .body{max-width:540px;margin:18vh 0 0 auto}
 .section-04 .scenes-intro{display:flex;justify-content:space-between;margin-bottom:7rem;font-size:12px;letter-spacing:.08em}.editorial-scenes{display:flex;flex-direction:column;gap:14rem}.editorial-scenes .scene{margin:0}.editorial-scenes .scene img{display:block;width:100%;height:auto;object-fit:contain}.editorial-scenes .scene figcaption{margin-top:1.25rem}.editorial-scenes .scene h3{font-size:24px;margin:0 0 .5rem}.editorial-scenes .scene p{font-size:16px;margin:0;max-width:440px}.editorial-scenes .scene-1{width:min(62%,760px);align-self:flex-end}.editorial-scenes .scene-2{width:min(48%,560px);align-self:flex-start}.editorial-scenes .scene-3{width:min(54%,640px);align-self:flex-end}.editorial-scenes .scene-4{width:min(76%,900px);align-self:flex-start}
 @media (max-width:767px){.section-01 .section-copy,.section-02 .frame-copy{max-width:none;margin:0 0 4rem}.section-01 .place-map,.section-02 .narrative-map{width:100%;margin:0}.section-03{min-height:80vh}.section-03 .section-copy{margin:0;padding-top:0}.section-03 .body{margin:12vh 0 0}.section-04 .scenes-intro{margin-bottom:4rem}.editorial-scenes{gap:10rem}.editorial-scenes .scene-1,.editorial-scenes .scene-2,.editorial-scenes .scene-3,.editorial-scenes .scene-4{width:100%;align-self:stretch}}
+
+/* Hankou 01–04 convergence */
+.section-01,.section-02,.section-03,.section-04{padding-top:clamp(72px,9vw,140px);padding-bottom:clamp(72px,9vw,140px)}
+.section-01 .section-copy,.section-02 .section-copy,.section-03 .section-copy{max-width:760px;margin:0 0 48px;padding:0}
+.section-01 .statement,.section-02 .statement{display:none}
+.section-01 .body,.section-02 .body,.section-03 .body,.editorial-scenes .scene p{font-size:17px;line-height:1.65;font-weight:400}
+.section-01 .place-map,.section-02 .narrative-map{width:min(100%,1200px);margin:0 auto}
+.section-01 .place-map img,.section-02 .narrative-map img{max-height:none}
+.section-02 .frame-copy{max-width:760px;margin:0 0 48px}
+.section-03{min-height:0}.section-03 .section-copy{max-width:760px;margin:0}.section-03 .heading{font-size:inherit}.section-03 .body{margin:0;max-width:760px}
+.section-04 .scenes-intro{display:block;margin:0 0 48px;font-size:inherit;letter-spacing:0}.section-04 .scenes-intro span{display:block}.section-04 .scenes-intro span+span{margin-top:16px}
+.editorial-scenes{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}.editorial-scenes .scene-1,.editorial-scenes .scene-2,.editorial-scenes .scene-3,.editorial-scenes .scene-4{width:auto;align-self:auto}.editorial-scenes .scene img{aspect-ratio:4/5;object-fit:cover}.editorial-scenes .scene figcaption{margin-top:16px}.editorial-scenes .scene h3{font-size:20px;line-height:1.2;margin:0 0 8px}.editorial-scenes .scene p{max-width:none;margin:0}
+@media(max-width:767px){.section-01,.section-02,.section-03,.section-04{padding-top:72px;padding-bottom:72px}.section-04 .scenes-intro{margin-bottom:32px}.editorial-scenes{grid-template-columns:repeat(2,1fr);gap:32px 16px}.editorial-scenes .scene h3{font-size:18px}.editorial-scenes .scene p{font-size:17px}}
