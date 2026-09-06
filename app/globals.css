@@ -26,6 +26,7 @@ a{color:inherit;text-decoration:none}
 footer{border-top:1px solid var(--rule);padding:18px var(--margin) 30px;display:flex;justify-content:space-between;font-size:12px}
 .project-header{display:flex;justify-content:space-between;padding:20px var(--margin);font-size:12px}
 .project-intro{padding:12vh var(--margin) 10vh;max-width:1050px}
+.summary{font-size:clamp(21px,2.3vw,38px);line-height:1.25;max-width:850px}
 .project-intro h1{font-size:clamp(54px,9vw,150px);font-weight:400;line-height:.9;letter-spacing:-.06em;margin:8vh 0 3vh}
 .project-intro h1 span{font-size:.55em}
 .question{font-size:clamp(18px,1.7vw,28px);max-width:650px;margin-top:8vh}
