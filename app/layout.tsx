@@ -2,21 +2,21 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Your Name — Creative / Visual Designer",
+  title: "梁文馨 — Spatial / Visual Designer",
   description:
-    "Independent creative and visual designer working across identity, image and digital experience.",
+    "梁文馨的作品集，2018—2026。区域研究与数据可视化、空间产品与体验设计、街区品牌设计、学术研究与产品应用。",
   openGraph: {
-    title: "Your Name — Creative / Visual Designer",
+    title: "梁文馨 — Spatial / Visual Designer",
     description:
-      "Selected identity, editorial and digital work by an independent creative designer.",
+      "连接研究、空间与视觉叙事。作品选集，2018—2026。",
     type: "website",
-    images: [{ url: "/og.png", width: 1200, height: 630, alt: "Your Name portfolio" }],
+    images: [{ url: "/portfolio/taihu-mountain.png", width: 3072, height: 1526, alt: "梁文馨作品集 · 山水主题街区概念研究" }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Your Name — Creative / Visual Designer",
-    description: "Selected work — 2026",
-    images: ["/og.png"],
+    title: "梁文馨 — Spatial / Visual Designer",
+    description: "研究、空间与叙事 — 2018—2026",
+    images: ["/portfolio/taihu-mountain.png"],
   },
 };
 

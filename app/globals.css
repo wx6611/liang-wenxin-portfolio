@@ -47,7 +47,7 @@ body::-webkit-scrollbar {
   display: none;
 }
 
-body:has(.preview-modal) {
+body:has(.portfolio-dialog[open]) {
   overflow: hidden;
 }
 
@@ -83,7 +83,8 @@ button {
   pointer-events: none;
 }
 
-.site-header a {
+.site-header a,
+.site-header button {
   pointer-events: auto;
 }
 
@@ -157,7 +158,8 @@ button {
   width: 143px;
   height: 83px;
   margin: 0;
-  overflow: hidden;
+  position: relative;
+  overflow: visible;
   border: 0;
   padding: 0;
   background: transparent;
@@ -202,11 +204,11 @@ button {
 
 .chapter-copy {
   grid-column: 8 / -1;
-  font-family: var(--editorial);
-  font-size: 42.67px;
+  font-family: var(--display);
+  font-size: 34px;
   font-weight: 400;
-  line-height: 1.2;
-  letter-spacing: -0.045em;
+  line-height: 1.55;
+  letter-spacing: -0.025em;
   padding-top: 22px;
 }
 
@@ -452,9 +454,9 @@ button {
 
   .chapter-copy {
     grid-column: 3 / -1;
-    font-size: 20px;
-    line-height: 1.2;
-    letter-spacing: -0.045em;
+    font-size: 19px;
+    line-height: 1.65;
+    letter-spacing: -0.02em;
     padding-top: 0;
   }
 
@@ -547,4 +549,79 @@ button {
   html {
     scroll-behavior: auto;
   }
+}
+
+/* Personal portfolio content; the original A/B/C grid is retained. */
+button { border: 0; padding: 0; background: transparent; cursor: pointer; }
+button:focus-visible, a:focus-visible { outline: 2px solid currentColor; outline-offset: 5px; }
+.hero-name { letter-spacing: 0.03em; }
+.preview-caption { position: absolute; top: calc(100% + 12px); left: 50%; transform: translateX(-50%); white-space: nowrap; font: 10px/1.4 var(--mono); letter-spacing: 0.04em; }
+.hero-preview img { object-position: 50% 30%; }
+.media-button { display: block; width: 100%; }
+.habitat-media img { object-fit: contain; background: white; }
+.project-index { width: 275px; font-family: var(--display); line-height: 1.55; }
+.project-index ol { list-style: decimal; padding-left: 24px; }
+.project-index button { display: block; padding: 4px 0; text-align: left; font: inherit; }
+.project-index button:hover, .contact-copy a:hover { text-decoration: underline; text-underline-offset: 4px; }
+.contact-copy { font-family: var(--editorial); font-size: 40px; }
+.contact-copy address > span, .original-portfolio { font-family: var(--display); }
+.contact-copy address { gap: 10px; }
+.contact-copy .original-portfolio { margin-top: 12px; font-size: 17px; }
+.portfolio-dialog { position: fixed; inset: 0; width: 100%; max-width: none; height: 100dvh; max-height: none; margin: 0; border: 0; padding: 0; background: var(--paper); color: var(--ink); }
+.portfolio-dialog[open] { display: flex; flex-direction: column; }
+.portfolio-dialog::backdrop { background: var(--paper); }
+.portfolio-dialog, .portfolio-dialog * { cursor: auto; }
+.portfolio-dialog a, .portfolio-dialog button { cursor: pointer; }
+.portfolio-toolbar { display: flex; flex: 0 0 auto; align-items: center; justify-content: space-between; gap: 24px; min-height: 76px; padding: 16px var(--page-margin); border-bottom: 1px solid var(--rule); }
+.portfolio-toolbar button { font-size: 16px; min-height: 44px; }
+.portfolio-content { overflow-y: auto; overscroll-behavior: contain; flex: 1; padding: 56px var(--page-margin) 80px; }
+.case-meta { margin: 0 0 24px; font: 13px/1.7 var(--display); letter-spacing: 0.02em; }
+.portfolio-content h2 { margin: 0 0 72px; font-size: clamp(34px, 5vw, 72px); font-weight: 450; line-height: 1.2; letter-spacing: -0.035em; }
+.work-category { display: grid; grid-template-columns: 1fr 1fr; gap: 6vw; padding: 32px 0 52px; border-top: 1px solid var(--rule); }
+.category-heading { display: flex; gap: 32px; align-items: start; }
+.category-heading > span { font: 44px/1 var(--display); }
+.category-heading h3 { margin: 0; font-size: 23px; font-weight: 500; }
+.category-heading p { font: 12px/1.6 var(--mono); margin: 10px 0; }
+.work-row { display: grid; width: 100%; grid-template-columns: 1fr auto 20px; gap: 20px; align-items: center; padding: 18px 0; text-align: left; border-bottom: 1px solid var(--rule); font-size: 19px; line-height: 1.5; transition: opacity 150ms ease; }
+.work-row:first-child { padding-top: 0; }
+.work-row:hover { opacity: 0.55; }
+.work-year { font: 12px/1.5 var(--mono); }
+.case-copy { margin: 0 0 32px auto; max-width: 690px; font-size: 21px; line-height: 1.9; }
+.case-copy p { margin: 0 0 22px; }
+.source-link { display: block; width: fit-content; margin: 0 0 72px auto; border-bottom: 1px solid currentColor; padding-bottom: 4px; font-size: 15px; }
+.case-images figure { margin: 0 0 64px; }
+.case-images img { display: block; width: 100%; height: auto; }
+.case-images figcaption { margin-top: 14px; font-size: 13px; line-height: 1.7; }
+.next-project { display: block; width: 100%; margin-top: 72px; border-top: 1px solid var(--rule); padding-top: 28px; text-align: right; font-size: 22px; line-height: 1.6; }
+@media (min-width: 768px) and (max-width: 1199px) {
+  .hero h1 { font-size: 7.42vw; }
+  .chapter-copy { font-size: 27px; }
+  .project-cluster { grid-template-columns: 170px 1fr; gap: 18px; }
+  .project-cluster .chapter-media, .project-cluster img { width: 170px; }
+  .project-index { width: 230px; font-size: 11px; }
+  .contact-copy { font-size: 27px; }
+}
+@media (max-width: 767px) {
+  .hero h1 { font-size: clamp(40px, 14.1vw, 55px); }
+  .project-index { width: 100%; font-size: 12px; line-height: 1.55; }
+  .project-index button { padding: 7px 0; }
+  .contact-copy { font-size: 19px; }
+  .contact-copy a { max-width: 100%; overflow-wrap: anywhere; }
+  .contact-copy .original-portfolio { font-size: 14px; }
+  .portfolio-toolbar { min-height: 70px; padding: 12px 18px; }
+  .portfolio-toolbar button { font-size: 13px; }
+  .portfolio-content { padding: 36px 18px 60px; }
+  .portfolio-content h2 { margin-bottom: 48px; font-size: 34px; }
+  .case-meta { font-size: 11px; margin-bottom: 18px; }
+  .work-category { grid-template-columns: 1fr; gap: 26px; padding: 28px 0 36px; }
+  .category-heading { gap: 20px; }
+  .category-heading > span { font-size: 36px; }
+  .category-heading h3 { font-size: 19px; }
+  .category-heading p { font-size: 10px; }
+  .work-row { font-size: 16px; gap: 10px; padding: 16px 0; }
+  .case-copy { font-size: 17px; line-height: 1.85; }
+  .source-link { margin-bottom: 40px; font-size: 13px; }
+  .case-images figure { margin-bottom: 32px; }
+  .case-images figcaption { font-size: 11px; }
+  .next-project { font-size: 17px; margin-top: 40px; }
 }
