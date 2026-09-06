@@ -79,3 +79,14 @@ footer{flex-direction:column;gap:10px}
 .section-04 .scenes-intro{display:block;margin:0 0 48px;font-size:inherit;letter-spacing:0}.section-04 .scenes-intro span{display:block}.section-04 .scenes-intro span+span{margin-top:16px}
 .editorial-scenes{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}.editorial-scenes .scene-1,.editorial-scenes .scene-2,.editorial-scenes .scene-3,.editorial-scenes .scene-4{width:auto;align-self:auto}.editorial-scenes .scene img{aspect-ratio:4/5;object-fit:cover}.editorial-scenes .scene figcaption{margin-top:16px}.editorial-scenes .scene h3{font-size:20px;line-height:1.2;margin:0 0 8px}.editorial-scenes .scene p{max-width:none;margin:0}
 @media(max-width:767px){.section-01,.section-02,.section-03,.section-04{padding-top:72px;padding-bottom:72px}.section-04 .scenes-intro{margin-bottom:32px}.editorial-scenes{grid-template-columns:repeat(2,1fr);gap:32px 16px}.editorial-scenes .scene h3{font-size:18px}.editorial-scenes .scene p{font-size:17px}}
+
+/* Final Hankou typography convergence */
+.hankou .project-intro .eyebrow{font-size:14px;line-height:1.65;font-weight:400}
+.hankou .project-intro h1{font-size:clamp(48px,7vw,112px);line-height:.95;font-weight:400;letter-spacing:-.04em}
+.hankou .project-intro h1 span{font-size:1em}
+.hankou .project-intro .summary,.hankou .section-copy .body,.hankou .editorial-scenes .scene p{font-size:17px;line-height:1.65;font-weight:400}
+.hankou .section-kicker,.hankou .scenes-intro{font-size:14px;line-height:1.2;letter-spacing:.08em;font-weight:400}
+.hankou .section-copy h2,.hankou .scenes-intro+* h2{font-size:clamp(38px,5vw,72px);line-height:1;font-weight:400;letter-spacing:-.03em}
+.hankou .section-copy .statement,.hankou .section-english{display:none}
+.hankou .section-03 .section-copy{padding-top:clamp(24px,5vw,72px);padding-bottom:clamp(24px,5vw,72px)}
+.hankou .editorial-scenes .scene h3{font-size:20px;line-height:1.2;font-weight:400}
