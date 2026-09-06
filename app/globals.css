@@ -88,9 +88,15 @@ footer{flex-direction:column;gap:10px}
 .hankou .project-intro .summary,.hankou .section-copy .body,.hankou .editorial-scenes .scene p{font-size:17px;line-height:1.65;font-weight:400}
 .hankou .section-01 .body,.hankou .section-02 .body{white-space:normal}
 .hankou .section-01 .section-copy,.hankou .section-02 .section-copy{max-width:1200px}
-@media(min-width:768px){.hankou .section-01 .body,.hankou .section-02 .body{white-space:nowrap}}
 .hankou .section-kicker,.hankou .scenes-intro{font-size:14px;line-height:1.2;letter-spacing:.08em;font-weight:400}
 .hankou .section-copy h2,.hankou .scenes-intro+* h2{font-size:clamp(38px,5vw,72px);line-height:1;font-weight:400;letter-spacing:-.03em}
 .hankou .section-copy .statement,.hankou .section-english{display:none}
 .hankou .section-03 .section-copy{padding-top:clamp(24px,5vw,72px);padding-bottom:clamp(24px,5vw,72px)}
 .hankou .editorial-scenes .scene h3{font-size:20px;line-height:1.2;font-weight:400}
+
+/* Hankou 05–09 first-pass structures */
+.section-05 .asset-slot.slots,.section-06 .asset-slot.slots,.section-09 .asset-slot.slots{grid-template-columns:repeat(4,1fr);gap:16px}
+.section-05 .asset-slot.slots figure:first-child{grid-column:1/-1}.section-05 .asset-slot.slots figure:first-child .placeholder-box{min-height:420px}
+.section-07 .asset-slot.slots{display:grid;grid-template-columns:1fr 1fr;gap:16px}.section-07 .asset-slot.slots figure:nth-child(2){grid-row:span 2}.section-08 .asset-slot.slots{display:block;max-width:1200px;margin:0 auto}.section-08 .asset-slot.slots figure{width:100%}
+.section-09 .asset-slot.slots figure .placeholder-box{aspect-ratio:9/16;min-height:0}
+@media(max-width:767px){.section-05 .asset-slot.slots,.section-06 .asset-slot.slots,.section-09 .asset-slot.slots{grid-template-columns:repeat(2,1fr)}.section-05 .asset-slot.slots figure:first-child{grid-column:1/-1}.section-07 .asset-slot.slots{grid-template-columns:1fr}.section-07 .asset-slot.slots figure:nth-child(2){grid-row:auto}}
