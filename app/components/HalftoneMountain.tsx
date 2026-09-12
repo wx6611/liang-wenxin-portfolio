@@ -5,6 +5,7 @@ import { PointerEvent, useCallback, useEffect, useRef, useState } from "react";
 const DESKTOP_GRID = { columns: 82, rows: 36 };
 const MOBILE_GRID = { columns: 56, rows: 28 };
 const INITIAL_SEED = 6611;
+const INTERACTION_RADIUS = 0.245;
 
 type Position = { x: number; y: number };
 type Layer = "far" | "front";
@@ -19,42 +20,44 @@ type LineField = {
 };
 
 const LINE_FIELDS: LineField[] = [
-  { layer: "far", y: 0.39, start: 0.08, end: 0.5, gap: 0.22 },
-  { layer: "far", y: 0.46, start: 0.43, end: 0.91, gap: 0.3 },
-  { layer: "far", y: 0.54, start: 0.02, end: 0.37, gap: 0.14 },
-  { layer: "far", y: 0.61, start: 0.55, end: 0.98, gap: 0.18 },
-  { layer: "front", y: 0.52, start: 0.27, end: 0.61, gap: 0.16 },
-  { layer: "front", y: 0.59, start: 0.08, end: 0.43, gap: 0.28 },
-  { layer: "front", y: 0.65, start: 0.48, end: 0.91, gap: 0.12 },
-  { layer: "front", y: 0.7, start: 0.03, end: 0.29, gap: 0.2 },
-  { layer: "front", y: 0.75, start: 0.66, end: 0.98, gap: 0.24 },
-  { layer: "front", y: 0.81, start: 0.16, end: 0.59, gap: 0.1 },
-  { layer: "front", y: 0.86, start: 0.38, end: 0.89, gap: 0.18 },
-  { layer: "front", y: 0.91, start: 0.01, end: 0.97, gap: 0.08 },
+  { layer: "far", y: 0.4, start: 0.48, end: 0.72, gap: 0.25 },
+  { layer: "far", y: 0.48, start: 0.18, end: 0.51, gap: 0.34 },
+  { layer: "far", y: 0.55, start: 0.08, end: 0.35, gap: 0.18 },
+  { layer: "far", y: 0.6, start: 0.6, end: 0.94, gap: 0.29 },
+  { layer: "front", y: 0.54, start: 0.26, end: 0.58, gap: 0.16 },
+  { layer: "front", y: 0.62, start: 0.07, end: 0.39, gap: 0.27 },
+  { layer: "front", y: 0.68, start: 0.5, end: 0.9, gap: 0.12 },
+  { layer: "front", y: 0.74, start: 0.03, end: 0.29, gap: 0.21 },
+  { layer: "front", y: 0.82, start: 0.15, end: 0.58, gap: 0.1 },
+  { layer: "front", y: 0.88, start: 0.38, end: 0.92, gap: 0.19 },
 ];
 
 const RIDGE_POINTS: Record<Layer, RidgePoint[]> = {
   far: [
-    { x: 0, y: 0.7 },
-    { x: 0.11, y: 0.62 },
-    { x: 0.25, y: 0.38 },
-    { x: 0.36, y: 0.49 },
-    { x: 0.56, y: 0.15 },
-    { x: 0.65, y: 0.28 },
-    { x: 0.76, y: 0.57 },
-    { x: 0.87, y: 0.48 },
-    { x: 1, y: 0.68 },
+    { x: 0, y: 0.74 },
+    { x: 0.05, y: 0.69 },
+    { x: 0.16, y: 0.54 },
+    { x: 0.27, y: 0.35 },
+    { x: 0.42, y: 0.42 },
+    { x: 0.58, y: 0.22 },
+    { x: 0.64, y: 0.29 },
+    { x: 0.71, y: 0.46 },
+    { x: 0.82, y: 0.38 },
+    { x: 0.95, y: 0.65 },
+    { x: 1, y: 0.72 },
   ],
   front: [
-    { x: 0, y: 0.84 },
-    { x: 0.12, y: 0.72 },
-    { x: 0.28, y: 0.45 },
-    { x: 0.39, y: 0.63 },
-    { x: 0.53, y: 0.56 },
-    { x: 0.7, y: 0.49 },
-    { x: 0.8, y: 0.57 },
-    { x: 0.9, y: 0.7 },
-    { x: 1, y: 0.84 },
+    { x: 0, y: 0.88 },
+    { x: 0.07, y: 0.8 },
+    { x: 0.18, y: 0.56 },
+    { x: 0.31, y: 0.6 },
+    { x: 0.46, y: 0.38 },
+    { x: 0.53, y: 0.47 },
+    { x: 0.6, y: 0.57 },
+    { x: 0.72, y: 0.48 },
+    { x: 0.82, y: 0.61 },
+    { x: 0.92, y: 0.75 },
+    { x: 1, y: 0.86 },
   ],
 };
 
@@ -109,7 +112,7 @@ function ridge(layer: Layer, x: number, seed: number) {
 }
 
 function layerFoot(layer: Layer, x: number, seed: number) {
-  const foot = layer === "far" ? 0.82 : 0.95;
+  const foot = layer === "far" ? 0.87 : 0.95;
   return (
     foot +
     Math.sin(x * (layer === "far" ? 9 : 11) + seed * 0.000009) * 0.018 +
@@ -125,10 +128,12 @@ function density(layer: Layer, x: number, y: number, seed: number) {
 
   if (layer === "far") {
     const dense =
-      island(0.28, 0.45, 0.13, 0.13) * 0.72 +
-      island(0.58, 0.39, 0.11, 0.12) * 0.62 +
-      island(0.82, 0.5, 0.12, 0.12) * 0.58;
-    const blank = island(0.44, 0.5, 0.09, 0.1) * 0.78;
+      island(0.27, 0.44, 0.13, 0.12) * 0.58 +
+      island(0.58, 0.36, 0.11, 0.13) * 0.72 +
+      island(0.82, 0.49, 0.12, 0.12) * 0.54;
+    const blank =
+      island(0.42, 0.49, 0.085, 0.1) * 0.84 +
+      island(0.71, 0.52, 0.075, 0.095) * 0.76;
     const score = 0.16 + dense - blank + Math.sin(x * 11 + y * 8) * 0.05;
     if (score > 0.58) return 0.76;
     if (score > 0.3) return 0.42;
@@ -137,14 +142,13 @@ function density(layer: Layer, x: number, y: number, seed: number) {
   }
 
   const dense =
-    island(0.18, 0.72, 0.12, 0.12) * 0.96 +
-    island(0.43, 0.57, 0.11, 0.15) * 1.05 +
-    island(0.51, 0.36, 0.075, 0.1) * 0.9 +
-    island(0.61, 0.83, 0.15, 0.08) * 1.08 +
-    island(0.82, 0.67, 0.09, 0.12) * 0.78;
+    island(0.18, 0.66, 0.12, 0.13) * 1.02 +
+    island(0.45, 0.5, 0.105, 0.14) * 1.16 +
+    island(0.68, 0.74, 0.15, 0.105) * 1.1 +
+    island(0.76, 0.55, 0.08, 0.11) * 0.62;
   const blank =
     island(0.31, 0.67, 0.075, 0.11) * 1.0 +
-    island(0.6, 0.58, 0.085, 0.12) * 1.12 +
+    island(0.6, 0.6, 0.085, 0.12) * 1.12 +
     island(0.77, 0.8, 0.065, 0.08) * 0.9;
   const score = 0.17 + dense - blank + Math.sin(x * 13 - y * 9) * 0.055;
   if (score > 0.72) return 0.96;
@@ -204,21 +208,30 @@ export default function HalftoneMountain() {
           const y = (row + 0.5) / grid.rows;
           const mountainRidge = ridge(layer, x, seed);
           const foot = layerFoot(layer, x, seed);
-          if (x < 0.025 || x > 0.975 || y < mountainRidge || y > foot) continue;
+          if (x < 0.05 || x > 0.95 || y < mountainRidge || y > foot) continue;
+
+          if (layer === "far" && x >= 0.35 && x <= 0.78) {
+            const foregroundRidge = ridge("front", x, seed);
+            if (y >= foregroundRidge) continue;
+          }
 
           const ridgeDistance = y - mountainRidge;
           const ridgeBand = ridgeDistance >= 0 && ridgeDistance < 0.038;
           const baseDensity = density(layer, x, y, seed);
           const terrainDepth = ridgeDistance / Math.max(0.08, foot - mountainRidge);
-          const footFade = 1 - smoothStep(0.72, 1, terrainDepth);
+          const depthFade = 1 - smoothStep(layer === "far" ? 0.62 : 0.72, 1, terrainDepth);
+          const verticalFade =
+            1 - smoothStep(layer === "far" ? 0.68 : 0.73, layer === "far" ? 0.88 : 0.94, y);
+          const footFade = depthFade * verticalFade;
           const distance = position
             ? Math.hypot(x - position.x, (y - position.y) * 1.3)
             : Infinity;
-          const influence = smoothFalloff(distance, 0.19);
+          const influence = smoothFalloff(distance, INTERACTION_RADIUS);
           const silhouetteChance = Math.max(ridgeBand ? 0.86 : 0, baseDensity);
+          const densityBoost = layer === "far" ? 0.28 : 0.36;
           const visibleChance = Math.min(
             0.98,
-            silhouetteChance * (0.12 + footFade * 0.88) + influence * 0.2,
+            silhouetteChance * (0.12 + footFade * 0.88) + influence * densityBoost,
           );
           if (random(seed + layerIndex * 97, column, row, 0) > visibleChance) continue;
 
@@ -228,12 +241,14 @@ export default function HalftoneMountain() {
           const densityScale = layer === "far" ? 0.68 + baseDensity * 0.35 : 0.78 + baseDensity * 0.62;
           const radiusBase = Math.min(cellWidth, cellHeight) * (layer === "far" ? 0.12 : 0.17);
           const footScale = 0.5 + footFade * 0.5;
-          const radius = radiusBase * densityScale * sizeNoise * footScale * (1 + influence * 0.42);
+          const sizeBoost = layer === "far" ? 0.58 : 0.82;
+          const radius =
+            radiusBase * densityScale * sizeNoise * footScale * (1 + influence * sizeBoost);
           const fadeAlpha = 0.35 + footFade * 0.65;
           context.globalAlpha =
             layer === "far"
-              ? (0.2 + baseDensity * 0.26) * fadeAlpha + influence * 0.06
-              : (0.42 + baseDensity * 0.48) * fadeAlpha + influence * 0.1;
+              ? (0.2 + baseDensity * 0.26) * fadeAlpha + influence * 0.12
+              : (0.42 + baseDensity * 0.48) * fadeAlpha + influence * 0.18;
           context.beginPath();
           context.arc(
             (column + 0.5) * cellWidth + jitterX,
@@ -263,14 +278,16 @@ export default function HalftoneMountain() {
           const localInfluence = position
             ? smoothFalloff(
                 Math.hypot(segmentX - position.x, (lineY - position.y) * 1.3),
-                0.19,
+                INTERACTION_RADIUS,
               )
             : 0;
-          const gapChance = Math.max(0.01, field.gap - localInfluence * 0.2);
+          const gapChance = Math.max(0.01, field.gap - localInfluence * 0.34);
           if (random(seed, segment, fieldIndex, 18 + layerIndex) < gapChance) continue;
           const x1 = segmentX * bounds.width;
-          const x2 = (segmentX + segmentWidth * (0.78 + localInfluence * 1.45)) * bounds.width;
+          const x2 = (segmentX + segmentWidth * (0.78 + localInfluence * 1.9)) * bounds.width;
           const py = lineY * bounds.height;
+          context.globalAlpha =
+            (layer === "far" ? 0.28 : 0.62) + localInfluence * (layer === "far" ? 0.14 : 0.2);
           context.beginPath();
           context.moveTo(x1, py);
           context.lineTo(x2, py);
