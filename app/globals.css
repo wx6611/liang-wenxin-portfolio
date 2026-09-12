@@ -112,42 +112,70 @@ footer{flex-direction:column;gap:10px}
 
 /* Home cover ASCII mountain */
 .home .abstract-slot{
-  width:min(42vw,620px);
+  width:min(60vw,900px);
+  height:clamp(300px,40vh,380px);
   aspect-ratio:auto;
   border:0;
+  display:flex;
+  align-items:flex-end;
+  justify-content:center;
+}
+.ascii-mountain-shell{
+  position:relative;
+  height:100%;
+  max-width:100%;
+  aspect-ratio:960/776;
 }
 .ascii-mountain{
-  position:relative;
+  display:block;
+  position:absolute;
+  inset:0;
   width:100%;
+  height:100%;
   color:var(--ink);
-  opacity:.62;
-  overflow:visible;
   user-select:none;
   touch-action:manipulation;
+  opacity:.74;
   transition:opacity 420ms ease;
 }
-.ascii-mountain-layer{
-  margin:0;
-  width:max-content;
-  max-width:none;
-  font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;
-  font-size:clamp(6.5px,.6vw,9px);
-  font-weight:400;
-  line-height:.84;
-  letter-spacing:.08em;
-  white-space:pre;
-  transition:opacity 220ms ease;
-}
-.ascii-mountain-current{position:relative}
-.ascii-mountain-previous{position:absolute;inset:0;opacity:1}
-.ascii-mountain-previous.is-fading{opacity:0}
-.ascii-mountain-current.is-entering{opacity:0}
-.ascii-mountain.is-recalculating{opacity:.68}
+.ascii-mountain.is-recalculating{opacity:.78}
 @media(max-width:767px){
-  .home .abstract-slot{width:min(92vw,560px)}
-  .ascii-mountain-layer{font-size:clamp(5.5px,1.45vw,7px);line-height:.86}
+  .home .abstract-slot{width:min(92vw,560px);height:clamp(260px,38vh,320px)}
 }
 @media(prefers-reduced-motion:reduce){
-  .ascii-mountain-layer{transition:none}
-  .ascii-mountain{opacity:.62;transition:none}
+  .ascii-mountain{transition:none}
+}
+
+/* Home introduction alignment */
+.home .intro-lead,
+.home .intro-body,
+.home .intro-closing{
+  display:block;
+  width:100%;
+  max-width:100%;
+  inline-size:100%;
+  max-inline-size:100%;
+  text-align:justify;
+  text-justify:inter-character;
+}
+.home .intro-lead{text-wrap:balance}
+.home .intro-body,
+.home .intro-closing{
+  font-size:24px;
+  line-height:1.35;
+  font-weight:400;
+  letter-spacing:0;
+}
+
+/* Home cover sizing annotations */
+@media(min-width:768px){
+  .home .cover-name{font-size:clamp(60px,calc(13.6vw - 80px),180px)}
+  .home .method{font-size:clamp(18px,1.4vw,22px)}
+}
+@media(max-width:767px){
+  .home .cover-name{font-size:clamp(52px,10.2vw,60px)}
+}
+@media(max-width:640px){
+  .home .cover-name{font-size:clamp(40px,7.65vw,52px)}
+  .home .intro-lead{font-size:clamp(18px,5.35vw,32px)}
 }

@@ -4,36 +4,25 @@ import {
   PointerEvent,
   useCallback,
   useEffect,
-  useMemo,
   useRef,
   useState,
 } from "react";
 
-const COLUMNS = 74;
-const ROWS = 24;
+const DESKTOP_GRID = { columns: 84, rows: 68 };
+const MOBILE_GRID = { columns: 64, rows: 52 };
+const CHARACTERS = ["•", "•", "."] as const;
 const INITIAL_SEED = 6611;
-const DENSE_CHARACTERS = ["4", "6", "•"] as const;
 
-type GridPoint = {
+type Position = {
   x: number;
   y: number;
 };
 
-function seededRandom(seed: number) {
-  let state = seed >>> 0;
-
-  return () => {
-    state += 0x6d2b79f5;
-    let value = state;
-    value = Math.imul(value ^ (value >>> 15), value | 1);
-    value ^= value + Math.imul(value ^ (value >>> 7), value | 61);
-    return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-function gaussian(value: number, center: number, spread: number) {
-  return Math.exp(-Math.pow((value - center) / spread, 2));
-}
+type DensityMask = {
+  columns: number;
+  rows: number;
+  values: Float32Array;
+};
 
 function cellRandom(seed: number, column: number, row: number, channel: number) {
   let value =
@@ -45,203 +34,203 @@ function cellRandom(seed: number, column: number, row: number, channel: number) 
   return ((value ^ (value >>> 16)) >>> 0) / 4294967296;
 }
 
-function buildMountain(seed: number, disturbance: GridPoint | null) {
-  const random = seededRandom(seed);
-  const ridge = Array.from({ length: COLUMNS }, (_, column) => {
-    const x = column / (COLUMNS - 1);
-    const taper = Math.pow(Math.sin(Math.PI * x), 0.55);
-    const mass =
-      0.46 * gaussian(x, 0.61, 0.19) +
-      0.3 * gaussian(x, 0.3, 0.15) +
-      0.12 * gaussian(x, 0.82, 0.1);
-    const irregularity =
-      0.045 * Math.sin(x * 19 + seed * 0.013) +
-      0.028 * Math.sin(x * 43 + seed * 0.031);
-    return Math.max(0.04, Math.min(0.82, taper * (mass + 0.12 + irregularity)));
-  });
-
-  const lineRows = new Set([
-    8 + Math.floor(random() * 3),
-    13 + Math.floor(random() * 3),
-    18 + Math.floor(random() * 2),
-  ]);
-
-  return Array.from({ length: ROWS }, (_, row) => {
-    return Array.from({ length: COLUMNS }, (_, column) => {
-      const mountainTop = ROWS - 2 - Math.floor(ridge[column] * (ROWS - 4));
-      const insideMountain = row >= mountainTop && row < ROWS - 1;
-      const distance = disturbance
-        ? Math.hypot(column - disturbance.x, (row - disturbance.y) * 1.65)
-        : Infinity;
-      const influence = Math.max(0, 1 - distance / 9);
-      const regionalTexture =
-        0.5 +
-        0.25 * Math.sin(column * 0.31 + row * 0.57 + seed * 0.01) +
-        0.2 * Math.sin(column * 0.11 - row * 0.43);
-      const depth = insideMountain
-        ? (row - mountainTop) / Math.max(1, ROWS - mountainTop)
-        : 0;
-      const isScanLine = lineRows.has(row);
-      const nearSilhouette = row >= mountainTop - 1;
-
-      if (isScanLine && nearSilhouette) {
-        const lineChance = insideMountain ? 0.68 : 0.11;
-        const disturbedLineChance = influence * 0.24;
-        if (
-          cellRandom(seed, column, row, 0) <
-          lineChance + disturbedLineChance
-        ) {
-          return cellRandom(seed, column, row, 1) > 0.43 ? "—" : "_";
-        }
-      }
-
-      if (!insideMountain) {
-        return " ";
-      }
-
-      const hollow =
-        gaussian(column / COLUMNS, 0.46, 0.075) *
-        gaussian(row / ROWS, 0.68, 0.16);
-      const baseDensity =
-        0.07 + regionalTexture * 0.36 + depth * 0.13 - hollow * 0.44;
-      const recalculation =
-        influence *
-        (0.22 + 0.13 * Math.sin(column * 0.8 + row * 0.47 + seed));
-      const density = Math.max(0.02, Math.min(0.76, baseDensity + recalculation));
-
-      if (cellRandom(seed, column, row, 2) > density) {
-        return cellRandom(seed, column, row, 3) < 0.035 ? "." : " ";
-      }
-
-      if (cellRandom(seed, column, row, 4) < 0.12 && influence < 0.2) {
-        return ".";
-      }
-
-      const characterIndex = Math.floor(
-        cellRandom(seed, column, row, 5) * DENSE_CHARACTERS.length +
-          influence * 2,
-      ) % DENSE_CHARACTERS.length;
-      return DENSE_CHARACTERS[characterIndex];
-    }).join("");
-  }).join("\n");
-}
-
 function nextSeed(seed: number) {
   return (Math.imul(seed, 1664525) + 1013904223) >>> 0;
 }
 
 export default function AsciiMountain() {
-  const [seed, setSeed] = useState(INITIAL_SEED);
-  const [disturbance, setDisturbance] = useState<GridPoint | null>(null);
-  const [previousMountain, setPreviousMountain] = useState<string | null>(null);
-  const [crossfading, setCrossfading] = useState(false);
-  const [reducedMotion, setReducedMotion] = useState(false);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const frameRef = useRef<number | null>(null);
-  const lastPointerTypeRef = useRef("mouse");
   const recoveryRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const transitionRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const mountain = useMemo(
-    () => buildMountain(seed, disturbance),
-    [seed, disturbance],
-  );
+  const [mask, setMask] = useState<DensityMask | null>(null);
+  const [position, setPosition] = useState<Position | null>(null);
+  const [seed, setSeed] = useState(INITIAL_SEED);
+  const [reducedMotion, setReducedMotion] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [renderVersion, setRenderVersion] = useState(0);
 
   useEffect(() => {
-    const media = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const updatePreference = () => setReducedMotion(media.matches);
-    updatePreference();
-    media.addEventListener("change", updatePreference);
+    const motionMedia = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const mobileMedia = window.matchMedia("(max-width: 767px)");
+    const updateMotion = () => setReducedMotion(motionMedia.matches);
+    const updateGrid = () => setIsMobile(mobileMedia.matches);
+    updateMotion();
+    updateGrid();
+    motionMedia.addEventListener("change", updateMotion);
+    mobileMedia.addEventListener("change", updateGrid);
 
-    return () => media.removeEventListener("change", updatePreference);
+    return () => {
+      motionMedia.removeEventListener("change", updateMotion);
+      mobileMedia.removeEventListener("change", updateGrid);
+    };
+  }, []);
+
+  useEffect(() => {
+    const grid = isMobile ? MOBILE_GRID : DESKTOP_GRID;
+    const source = new window.Image();
+    source.src = "/images/home/ascii-mountain-reference.png";
+    source.onload = () => {
+      const sampler = document.createElement("canvas");
+      sampler.width = grid.columns;
+      sampler.height = grid.rows;
+      const context = sampler.getContext("2d", { willReadFrequently: true });
+      if (!context) return;
+      context.imageSmoothingEnabled = true;
+      context.imageSmoothingQuality = "high";
+      context.drawImage(source, 0, 0, grid.columns, grid.rows);
+      const pixels = context.getImageData(0, 0, grid.columns, grid.rows).data;
+      const values = new Float32Array(grid.columns * grid.rows);
+
+      for (let index = 0; index < values.length; index += 1) {
+        const pixel = index * 4;
+        const luminance =
+          pixels[pixel] * 0.2126 +
+          pixels[pixel + 1] * 0.7152 +
+          pixels[pixel + 2] * 0.0722;
+        values[index] = Math.max(0, (246 - luminance) / 230);
+      }
+
+      setMask({ ...grid, values });
+    };
+  }, [isMobile]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || !mask) return;
+    const bounds = canvas.getBoundingClientRect();
+    const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = Math.round(bounds.width * pixelRatio);
+    canvas.height = Math.round(bounds.height * pixelRatio);
+    const context = canvas.getContext("2d");
+    if (!context) return;
+    context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+    context.clearRect(0, 0, bounds.width, bounds.height);
+
+    const cellWidth = bounds.width / mask.columns;
+    const cellHeight = bounds.height / mask.rows;
+    const fontSize = Math.max(5, Math.min(cellWidth * 1.28, cellHeight * 1.42));
+    context.font = `400 ${fontSize}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
+    context.fillStyle = "#111";
+    context.textAlign = "center";
+    context.textBaseline = "middle";
+
+    for (let row = 0; row < mask.rows; row += 1) {
+      for (let column = 0; column < mask.columns; column += 1) {
+        const index = row * mask.columns + column;
+        const darkness = mask.values[index];
+        const distance = position
+          ? Math.hypot(
+              column / mask.columns - position.x,
+              (row / mask.rows - position.y) * 1.25,
+            )
+          : Infinity;
+        const influence = Math.max(0, 1 - distance / 0.13);
+        const normalizedDensity = Math.max(0, (darkness - 0.02) / 0.45);
+        const visibility = Math.min(1, Math.pow(normalizedDensity, 1.5));
+        const recalculatedVisibility = Math.min(1, visibility + influence * 0.2);
+        if (
+          cellRandom(seed, column, row, 0) > recalculatedVisibility ||
+          recalculatedVisibility < 0.07
+        ) {
+          continue;
+        }
+
+        const left = mask.values[index - 1] ?? 0;
+        const right = mask.values[index + 1] ?? 0;
+        const above = mask.values[index - mask.columns] ?? 0;
+        const below = mask.values[index + mask.columns] ?? 0;
+        const horizontalWeight = left + right - above - below;
+        let character: string;
+
+        if (
+          horizontalWeight > 0.035 &&
+          cellRandom(seed, column, row, 1) < 0.74 + influence * 0.15
+        ) {
+          character = cellRandom(seed, column, row, 2) > 0.45 ? "—" : "_";
+        } else if (
+          darkness < 0.2 &&
+          cellRandom(seed, column, row, 3) > 0.58
+        ) {
+          character = ".";
+        } else {
+          const characterIndex =
+            (Math.floor(cellRandom(seed, column, row, 4) * CHARACTERS.length) +
+              Math.round(influence * 2)) %
+            CHARACTERS.length;
+          character = CHARACTERS[characterIndex];
+        }
+
+        context.globalAlpha =
+          0.22 + Math.min(0.74, Math.pow(darkness, 0.62) * 1.08);
+        context.fillText(
+          character,
+          (column + 0.5) * cellWidth,
+          (row + 0.5) * cellHeight,
+        );
+      }
+    }
+    context.globalAlpha = 1;
+  }, [mask, position, renderVersion, seed]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const observer = new ResizeObserver(() => {
+      setRenderVersion((currentVersion) => currentVersion + 1);
+    });
+    observer.observe(canvas);
+    return () => observer.disconnect();
   }, []);
 
   useEffect(() => {
     return () => {
       if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
       if (recoveryRef.current) clearTimeout(recoveryRef.current);
-      if (transitionRef.current) clearTimeout(transitionRef.current);
     };
   }, []);
 
   const recover = useCallback(() => {
     if (recoveryRef.current) clearTimeout(recoveryRef.current);
-    recoveryRef.current = setTimeout(() => setDisturbance(null), 420);
+    recoveryRef.current = setTimeout(() => setPosition(null), 420);
   }, []);
 
-  const setPointerPosition = useCallback(
-    (event: PointerEvent<HTMLDivElement>) => {
+  const updatePosition = useCallback(
+    (event: PointerEvent<HTMLCanvasElement>) => {
       if (reducedMotion) return;
       const bounds = event.currentTarget.getBoundingClientRect();
-      const point = {
-        x: Math.round(
-          ((event.clientX - bounds.left) / bounds.width) * (COLUMNS - 1),
-        ),
-        y: Math.round(
-          ((event.clientY - bounds.top) / bounds.height) * (ROWS - 1),
-        ),
+      const nextPosition = {
+        x: (event.clientX - bounds.left) / bounds.width,
+        y: (event.clientY - bounds.top) / bounds.height,
       };
-
       if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
-      frameRef.current = requestAnimationFrame(() => setDisturbance(point));
+      frameRef.current = requestAnimationFrame(() => setPosition(nextPosition));
       recover();
     },
     [recover, reducedMotion],
   );
 
   const handlePointerMove = useCallback(
-    (event: PointerEvent<HTMLDivElement>) => {
-      if (event.pointerType === "mouse") setPointerPosition(event);
+    (event: PointerEvent<HTMLCanvasElement>) => {
+      if (event.pointerType === "mouse") updatePosition(event);
     },
-    [setPointerPosition],
-  );
-
-  const handlePointerDown = useCallback(
-    (event: PointerEvent<HTMLDivElement>) => {
-      lastPointerTypeRef.current = event.pointerType;
-      setPointerPosition(event);
-    },
-    [setPointerPosition],
+    [updatePosition],
   );
 
   const regenerate = useCallback(() => {
-    if (reducedMotion || lastPointerTypeRef.current !== "mouse") return;
-    setPreviousMountain(mountain);
-    setCrossfading(false);
-    setDisturbance(null);
-    setSeed((currentSeed) => nextSeed(currentSeed));
-    requestAnimationFrame(() => setCrossfading(true));
-    if (transitionRef.current) clearTimeout(transitionRef.current);
-    transitionRef.current = setTimeout(() => {
-      setPreviousMountain(null);
-      setCrossfading(false);
-    }, 240);
-  }, [mountain, reducedMotion]);
+    if (!reducedMotion) setSeed((currentSeed) => nextSeed(currentSeed));
+  }, [reducedMotion]);
 
   return (
-    <div
-      className={`ascii-mountain${disturbance ? " is-recalculating" : ""}`}
-      aria-hidden="true"
-      onClick={regenerate}
-      onPointerDown={handlePointerDown}
-      onPointerLeave={recover}
-      onPointerMove={handlePointerMove}
-    >
-      {previousMountain && (
-        <pre
-          className={`ascii-mountain-layer ascii-mountain-previous${
-            crossfading ? " is-fading" : ""
-          }`}
-        >
-          {previousMountain}
-        </pre>
-      )}
-      <pre
-        className={`ascii-mountain-layer ascii-mountain-current${
-          previousMountain && !crossfading ? " is-entering" : ""
-        }`}
-      >
-        {mountain}
-      </pre>
+    <div className="ascii-mountain-shell">
+      <canvas
+        ref={canvasRef}
+        className={`ascii-mountain${position ? " is-recalculating" : ""}`}
+        aria-hidden="true"
+        onClick={regenerate}
+        onPointerDown={updatePosition}
+        onPointerLeave={recover}
+        onPointerMove={handlePointerMove}
+      />
     </div>
   );
 }
