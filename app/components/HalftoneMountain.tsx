@@ -7,7 +7,11 @@ const MOBILE_GRID = { columns: 56, rows: 28 };
 const INITIAL_SEED = 6611;
 const PIXEL_SEED = 9437;
 const INTERACTION_RADIUS = 0.245;
-const MORPH_DURATION = 760;
+const CLICK_MORPH_DURATION = 760;
+const AUTO_MORPH_DURATION = 12000;
+const HAZE_FADE_DURATION = 560;
+const DESKTOP_FRAME_INTERVAL = 40;
+const MOBILE_FRAME_INTERVAL = 56;
 
 const LAYER_ORDER = ["far", "midFar", "mid", "front"] as const;
 
@@ -54,8 +58,8 @@ type LayerStyle = {
 
 const LAYER_STYLES: Record<Layer, LayerStyle> = {
   far: {
-    densityScale: 0.5,
-    pixelScale: 0.65,
+    densityScale: 0.6,
+    pixelScale: 0.68,
     opacityBase: 0.18,
     opacityRange: 0.12,
     activationAlpha: 0.14,
@@ -71,8 +75,8 @@ const LAYER_STYLES: Record<Layer, LayerStyle> = {
     xEnd: 0.97,
   },
   midFar: {
-    densityScale: 0.62,
-    pixelScale: 0.78,
+    densityScale: 0.74,
+    pixelScale: 0.82,
     opacityBase: 0.28,
     opacityRange: 0.14,
     activationAlpha: 0.17,
@@ -88,8 +92,8 @@ const LAYER_STYLES: Record<Layer, LayerStyle> = {
     xEnd: 0.95,
   },
   mid: {
-    densityScale: 0.75,
-    pixelScale: 0.9,
+    densityScale: 0.88,
+    pixelScale: 0.94,
     opacityBase: 0.42,
     opacityRange: 0.18,
     activationAlpha: 0.2,
@@ -105,8 +109,8 @@ const LAYER_STYLES: Record<Layer, LayerStyle> = {
     xEnd: 0.93,
   },
   front: {
-    densityScale: 0.9,
-    pixelScale: 1,
+    densityScale: 1.02,
+    pixelScale: 1.04,
     opacityBase: 0.58,
     opacityRange: 0.22,
     activationAlpha: 0.26,
@@ -172,6 +176,10 @@ function smoothFalloff(distance: number, radius: number) {
 
 function easeOutCubic(progress: number) {
   return 1 - Math.pow(1 - progress, 3);
+}
+
+function easeInOutSine(progress: number) {
+  return -(Math.cos(Math.PI * progress) - 1) / 2;
 }
 
 function generateLayer(
@@ -401,7 +409,7 @@ function density(layer: Layer, composition: LayerComposition, x: number, y: numb
     dense -
     hollow +
     Math.sin(x * (11 + layerIndex * 2) + y * 9 + composition.phase) * 0.045;
-  const rawDensity = score > 0.68 ? 0.98 : score > 0.38 ? 0.74 : score > 0.16 ? 0.36 : 0.07;
+  const rawDensity = score > 0.68 ? 0.99 : score > 0.38 ? 0.82 : score > 0.16 ? 0.44 : 0.08;
   return rawDensity * LAYER_STYLES[layer].densityScale;
 }
 
@@ -411,20 +419,27 @@ export default function HalftoneMountain() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const pointerFrameRef = useRef<number | null>(null);
   const morphFrameRef = useRef<number | null>(null);
+  const hazeFrameRef = useRef<number | null>(null);
   const recoveryRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const isVisibleRef = useRef(true);
+  const isVisibleRef = useRef(false);
+  const reducedMotionRef = useRef(false);
   const positionRef = useRef<Position | null>(null);
+  const hazeStrengthRef = useRef(0);
   const seedRef = useRef(INITIAL_SEED);
   const currentCompositionRef = useRef(INITIAL_COMPOSITION);
   const previousCompositionRef = useRef(INITIAL_COMPOSITION);
   const morphProgressRef = useRef(1);
+  const startAutoMorphRef = useRef<() => void>(() => undefined);
   const [reducedMotion, setReducedMotion] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
     const motionMedia = window.matchMedia("(prefers-reduced-motion: reduce)");
     const mobileMedia = window.matchMedia("(max-width: 767px)");
-    const updateMotion = () => setReducedMotion(motionMedia.matches);
+    const updateMotion = () => {
+      reducedMotionRef.current = motionMedia.matches;
+      setReducedMotion(motionMedia.matches);
+    };
     const updateGrid = () => setIsMobile(mobileMedia.matches);
     updateMotion();
     updateGrid();
@@ -443,8 +458,12 @@ export default function HalftoneMountain() {
     if (!bounds.width || !bounds.height) return;
     const grid = isMobile ? MOBILE_GRID : DESKTOP_GRID;
     const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
-    canvas.width = Math.round(bounds.width * pixelRatio);
-    canvas.height = Math.round(bounds.height * pixelRatio);
+    const canvasWidth = Math.round(bounds.width * pixelRatio);
+    const canvasHeight = Math.round(bounds.height * pixelRatio);
+    if (canvas.width !== canvasWidth || canvas.height !== canvasHeight) {
+      canvas.width = canvasWidth;
+      canvas.height = canvasHeight;
+    }
     const context = canvas.getContext("2d");
     if (!context) return;
     context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
@@ -490,12 +509,14 @@ export default function HalftoneMountain() {
             ? Math.hypot(x - positionRef.current.x, (y - positionRef.current.y) * 1.3)
             : Infinity;
           const influence = smoothFalloff(distance, INTERACTION_RADIUS);
+          const activation = influence * hazeStrengthRef.current;
           const ridgeBand = ridgeDistance >= 0 && ridgeDistance < 0.04;
           const ridgeChance = 0.48 + style.densityScale * 0.38;
           const silhouetteChance = Math.max(ridgeBand ? ridgeChance : 0, baseDensity);
           const visibleChance = Math.min(
             0.98,
-            silhouetteChance * (0.12 + footFade * 0.88) + influence * style.densityBoost,
+            silhouetteChance * (0.14 + footFade * 0.86) +
+              activation * style.densityBoost * 0.18,
           );
           if (random(PIXEL_SEED + layerIndex * 97, column, row, 0) > visibleChance) continue;
 
@@ -507,14 +528,15 @@ export default function HalftoneMountain() {
           const pixelScale = (0.2 + baseDensity * 0.72) * style.pixelScale;
           const footScale = 0.43 + footFade * 0.57;
           const sizeBoost = 0.48 + style.pixelScale * 0.24;
-          const activatedScale = pixelScale * sizeNoise * footScale * (1 + influence * sizeBoost);
+          const activatedScale =
+            pixelScale * sizeNoise * footScale * (1 + activation * sizeBoost * 0.18);
           const pixelWidth = cellWidth * Math.min(0.86, activatedScale);
           const pixelHeight = cellHeight * Math.min(0.82, activatedScale);
           const fadeAlpha = 0.34 + footFade * 0.66;
           context.globalAlpha = Math.min(
             1,
             (style.opacityBase + baseDensity * style.opacityRange) * fadeAlpha +
-              influence * style.activationAlpha,
+              activation * style.activationAlpha * 0.14,
           );
           context.fillRect(
             Math.round((column + 0.5) * cellWidth + jitterX - pixelWidth / 2),
@@ -542,21 +564,24 @@ export default function HalftoneMountain() {
                 INTERACTION_RADIUS,
               )
             : 0;
-          const gapChance = Math.max(0.01, field.gap - localInfluence * 0.42);
+          const activation = localInfluence * hazeStrengthRef.current;
+          const gapChance = Math.max(0.01, field.gap - activation * 0.12);
           if (random(PIXEL_SEED + layerIndex * 53, segment, fieldIndex, 18) < gapChance) continue;
           const pixelRowWidth =
-            segmentWidth * bounds.width * (0.7 + localInfluence * (1.25 + style.pixelScale));
+            segmentWidth * bounds.width * (0.7 + activation * (0.18 + style.pixelScale * 0.24));
           const pixelRowHeight = Math.max(
             1,
             Math.round(
               cellHeight *
                 (0.07 + style.pixelScale * 0.06) *
-                (1 + localInfluence * (0.34 + style.pixelScale * 0.28)),
+                (1 + activation * (0.07 + style.pixelScale * 0.1)),
             ),
           );
           context.globalAlpha = Math.min(
             1,
-            style.opacityBase + style.opacityRange * 0.65 + localInfluence * style.activationAlpha,
+              style.opacityBase +
+              style.opacityRange * 0.65 +
+              activation * style.activationAlpha * 0.14,
           );
           context.fillRect(
             Math.round(segmentX * bounds.width),
@@ -567,6 +592,34 @@ export default function HalftoneMountain() {
         }
       });
     });
+
+    const hazePosition = positionRef.current;
+    const hazeStrength = hazeStrengthRef.current;
+    if (hazePosition && hazeStrength > 0.01) {
+      const centerX = hazePosition.x * bounds.width;
+      const centerY = hazePosition.y * bounds.height;
+      const lobes = [
+        { x: 0, y: 0, radius: 0.14, alpha: 0.3 },
+        { x: -0.05, y: 0.018, radius: 0.1, alpha: 0.18 },
+        { x: 0.058, y: -0.014, radius: 0.085, alpha: 0.14 },
+      ];
+
+      context.save();
+      context.globalCompositeOperation = "destination-out";
+      lobes.forEach((lobe) => {
+        const radius = bounds.width * lobe.radius;
+        const x = centerX + bounds.width * lobe.x;
+        const y = centerY + bounds.height * lobe.y;
+        const alpha = lobe.alpha * hazeStrength;
+        const haze = context.createRadialGradient(x, y, 0, x, y, radius);
+        haze.addColorStop(0, `rgb(0 0 0 / ${alpha})`);
+        haze.addColorStop(0.42, `rgb(0 0 0 / ${alpha * 0.68})`);
+        haze.addColorStop(1, "rgb(0 0 0 / 0)");
+        context.fillStyle = haze;
+        context.fillRect(x - radius, y - radius, radius * 2, radius * 2);
+      });
+      context.restore();
+    }
     context.globalAlpha = 1;
   }, [isMobile]);
 
@@ -582,83 +635,182 @@ export default function HalftoneMountain() {
     return () => observer.disconnect();
   }, [draw]);
 
+  const startMorph = useCallback(
+    (duration: number, mode: "auto" | "click") => {
+      if (reducedMotionRef.current || !isVisibleRef.current) return;
+      if (morphFrameRef.current !== null) cancelAnimationFrame(morphFrameRef.current);
+
+      const activeComposition = interpolateMountain(
+        previousCompositionRef.current,
+        currentCompositionRef.current,
+        morphProgressRef.current,
+      );
+      seedRef.current = nextSeed(seedRef.current);
+      previousCompositionRef.current = activeComposition;
+      currentCompositionRef.current = generateMountain(seedRef.current);
+      morphProgressRef.current = 0;
+
+      const startedAt = performance.now();
+      const frameInterval = isMobile ? MOBILE_FRAME_INTERVAL : DESKTOP_FRAME_INTERVAL;
+      let lastDrawAt = 0;
+      const morph = (now: number) => {
+        if (reducedMotionRef.current || !isVisibleRef.current) {
+          morphFrameRef.current = null;
+          return;
+        }
+
+        const linearProgress = Math.min(1, (now - startedAt) / duration);
+        morphProgressRef.current =
+          mode === "auto" ? easeInOutSine(linearProgress) : easeOutCubic(linearProgress);
+
+        if (now - lastDrawAt >= frameInterval || linearProgress === 1) {
+          draw();
+          lastDrawAt = now;
+        }
+
+        if (linearProgress < 1) {
+          morphFrameRef.current = requestAnimationFrame(morph);
+          return;
+        }
+
+        previousCompositionRef.current = currentCompositionRef.current;
+        morphProgressRef.current = 1;
+        morphFrameRef.current = null;
+        startAutoMorphRef.current();
+      };
+
+      morphFrameRef.current = requestAnimationFrame(morph);
+    },
+    [draw, isMobile],
+  );
+
+  useEffect(() => {
+    startAutoMorphRef.current = () => startMorph(AUTO_MORPH_DURATION, "auto");
+    return () => {
+      startAutoMorphRef.current = () => undefined;
+    };
+  }, [startMorph]);
+
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas || !("IntersectionObserver" in window)) return;
+    if (!canvas) return;
+    if (!("IntersectionObserver" in window)) {
+      isVisibleRef.current = true;
+      if (!reducedMotionRef.current) startAutoMorphRef.current();
+      return;
+    }
     const observer = new IntersectionObserver(
       ([entry]) => {
+        const becameVisible = entry.isIntersecting && !isVisibleRef.current;
         isVisibleRef.current = entry.isIntersecting;
-        if (!entry.isIntersecting) {
+        if (becameVisible && !reducedMotionRef.current) {
+          startAutoMorphRef.current();
+        } else if (!entry.isIntersecting) {
+          if (morphFrameRef.current !== null) cancelAnimationFrame(morphFrameRef.current);
+          if (hazeFrameRef.current !== null) cancelAnimationFrame(hazeFrameRef.current);
+          if (recoveryRef.current) clearTimeout(recoveryRef.current);
+          morphFrameRef.current = null;
+          hazeFrameRef.current = null;
+          const activeComposition = interpolateMountain(
+            previousCompositionRef.current,
+            currentCompositionRef.current,
+            morphProgressRef.current,
+          );
+          previousCompositionRef.current = activeComposition;
+          currentCompositionRef.current = activeComposition;
+          morphProgressRef.current = 1;
+          hazeStrengthRef.current = 0;
           positionRef.current = null;
-          draw();
         }
       },
       { threshold: 0.05 },
     );
     observer.observe(canvas);
     return () => observer.disconnect();
-  }, [draw]);
+  }, []);
 
-  useEffect(
-    () => () => {
-      if (pointerFrameRef.current !== null) cancelAnimationFrame(pointerFrameRef.current);
-      if (morphFrameRef.current !== null) cancelAnimationFrame(morphFrameRef.current);
-      if (recoveryRef.current) clearTimeout(recoveryRef.current);
-    },
-    [],
-  );
+  useEffect(() => {
+    if (!reducedMotion) {
+      if (isVisibleRef.current && morphFrameRef.current === null) {
+        startAutoMorphRef.current();
+      }
+      return;
+    }
 
-  const recover = useCallback(() => {
-    if (recoveryRef.current) clearTimeout(recoveryRef.current);
-    recoveryRef.current = setTimeout(() => {
-      positionRef.current = null;
-      draw();
-    }, 420);
-  }, [draw]);
-
-  const updatePosition = useCallback(
-    (event: PointerEvent<HTMLCanvasElement>) => {
-      if (reducedMotion || !isVisibleRef.current) return;
-      const bounds = event.currentTarget.getBoundingClientRect();
-      positionRef.current = {
-        x: (event.clientX - bounds.left) / bounds.width,
-        y: (event.clientY - bounds.top) / bounds.height,
-      };
-      if (pointerFrameRef.current !== null) cancelAnimationFrame(pointerFrameRef.current);
-      pointerFrameRef.current = requestAnimationFrame(draw);
-      recover();
-    },
-    [draw, recover, reducedMotion],
-  );
-
-  const regenerate = useCallback(() => {
+    if (morphFrameRef.current !== null) cancelAnimationFrame(morphFrameRef.current);
+    if (hazeFrameRef.current !== null) cancelAnimationFrame(hazeFrameRef.current);
+    morphFrameRef.current = null;
+    hazeFrameRef.current = null;
     const activeComposition = interpolateMountain(
       previousCompositionRef.current,
       currentCompositionRef.current,
       morphProgressRef.current,
     );
-    seedRef.current = nextSeed(seedRef.current);
     previousCompositionRef.current = activeComposition;
-    currentCompositionRef.current = generateMountain(seedRef.current);
-
-    if (morphFrameRef.current !== null) cancelAnimationFrame(morphFrameRef.current);
-    if (reducedMotion) {
-      previousCompositionRef.current = currentCompositionRef.current;
-      morphProgressRef.current = 1;
-      draw();
-      return;
-    }
-
-    morphProgressRef.current = 0;
-    const startedAt = performance.now();
-    const morph = (now: number) => {
-      const progress = Math.min(1, (now - startedAt) / MORPH_DURATION);
-      morphProgressRef.current = easeOutCubic(progress);
-      draw();
-      if (progress < 1) morphFrameRef.current = requestAnimationFrame(morph);
-    };
-    morphFrameRef.current = requestAnimationFrame(morph);
+    currentCompositionRef.current = activeComposition;
+    morphProgressRef.current = 1;
+    hazeStrengthRef.current = 0;
+    positionRef.current = null;
+    draw();
   }, [draw, reducedMotion]);
+
+  useEffect(
+    () => () => {
+      if (pointerFrameRef.current !== null) cancelAnimationFrame(pointerFrameRef.current);
+      if (morphFrameRef.current !== null) cancelAnimationFrame(morphFrameRef.current);
+      if (hazeFrameRef.current !== null) cancelAnimationFrame(hazeFrameRef.current);
+      if (recoveryRef.current) clearTimeout(recoveryRef.current);
+    },
+    [],
+  );
+
+  const fadeHaze = useCallback(() => {
+    if (recoveryRef.current) clearTimeout(recoveryRef.current);
+    if (hazeFrameRef.current !== null) cancelAnimationFrame(hazeFrameRef.current);
+    if (reducedMotionRef.current || hazeStrengthRef.current <= 0) return;
+
+    const startedAt = performance.now();
+    const initialStrength = hazeStrengthRef.current;
+    const fade = (now: number) => {
+      const progress = Math.min(1, (now - startedAt) / HAZE_FADE_DURATION);
+      hazeStrengthRef.current = initialStrength * (1 - easeOutCubic(progress));
+      draw();
+      if (progress < 1) {
+        hazeFrameRef.current = requestAnimationFrame(fade);
+        return;
+      }
+      hazeFrameRef.current = null;
+      hazeStrengthRef.current = 0;
+      positionRef.current = null;
+      draw();
+    };
+    hazeFrameRef.current = requestAnimationFrame(fade);
+  }, [draw]);
+
+  const updatePosition = useCallback(
+    (event: PointerEvent<HTMLCanvasElement>) => {
+      if (reducedMotionRef.current || !isVisibleRef.current) return;
+      if (hazeFrameRef.current !== null) cancelAnimationFrame(hazeFrameRef.current);
+      if (recoveryRef.current) clearTimeout(recoveryRef.current);
+      const bounds = event.currentTarget.getBoundingClientRect();
+      positionRef.current = {
+        x: (event.clientX - bounds.left) / bounds.width,
+        y: (event.clientY - bounds.top) / bounds.height,
+      };
+      hazeStrengthRef.current = 1;
+      if (pointerFrameRef.current !== null) cancelAnimationFrame(pointerFrameRef.current);
+      pointerFrameRef.current = requestAnimationFrame(draw);
+      if (event.pointerType !== "mouse") {
+        recoveryRef.current = setTimeout(fadeHaze, 120);
+      }
+    },
+    [draw, fadeHaze],
+  );
+
+  const regenerate = useCallback(() => {
+    if (reducedMotionRef.current) return;
+    startMorph(CLICK_MORPH_DURATION, "click");
+  }, [startMorph]);
 
   return (
     <div className="halftone-mountain-shell">
@@ -668,7 +820,8 @@ export default function HalftoneMountain() {
         aria-hidden="true"
         onClick={regenerate}
         onPointerDown={updatePosition}
-        onPointerLeave={recover}
+        onPointerCancel={fadeHaze}
+        onPointerLeave={fadeHaze}
         onPointerMove={(event) => event.pointerType === "mouse" && updatePosition(event)}
       />
     </div>
