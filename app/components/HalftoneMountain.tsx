@@ -576,16 +576,72 @@ export default function HalftoneMountain() {
             : 0;
           const activation = localInfluence * hazeStrengthRef.current;
           const gapChance = Math.max(0.01, field.gap - activation * 0.28);
-          if (random(PIXEL_SEED + layerIndex * 53, segment, fieldIndex, 18) < gapChance) continue;
-          const replacementSize =
-            Math.min(cellWidth, cellHeight) * (0.48 + activation * 0.22);
+          if (
+            !isSquareReplacement &&
+            random(PIXEL_SEED + layerIndex * 53, segment, fieldIndex, 18) < gapChance
+          ) {
+            continue;
+          }
+          const replacementColumn = clamp(
+            Math.round(segmentX * grid.columns - 0.5),
+            0,
+            grid.columns - 1,
+          );
+          const replacementRow = clamp(
+            Math.round(field.y * grid.rows - 0.5),
+            0,
+            grid.rows - 1,
+          );
+          const replacementDensity = density(
+            layer,
+            layerComposition,
+            segmentX,
+            field.y,
+          );
+          const terrainDepth =
+            (field.y - mountainRidge) / Math.max(0.08, foot - mountainRidge);
+          const replacementFootFade =
+            (1 - smoothStep(0.82, 1, terrainDepth)) * lineFootFade;
+          const replacementVisibleChance = Math.min(
+            0.98,
+            replacementDensity * (0.04 + replacementFootFade * 0.96) +
+              activation * style.densityBoost * 0.42,
+          );
+          if (
+            isSquareReplacement &&
+            random(
+              PIXEL_SEED + layerIndex * 97,
+              replacementColumn,
+              replacementRow,
+              0,
+            ) > replacementVisibleChance
+          ) {
+            continue;
+          }
+          const replacementSizeNoise =
+            0.93 +
+            random(
+              PIXEL_SEED,
+              replacementColumn,
+              replacementRow,
+              9 + layerIndex,
+            ) *
+              0.14;
+          const replacementPixelScale =
+            (0.2 + replacementDensity * 0.72) * style.pixelScale;
+          const replacementFootScale = 0.7 + replacementFootFade * 0.3;
+          const replacementActivatedScale =
+            replacementPixelScale *
+            replacementSizeNoise *
+            replacementFootScale *
+            (1 + activation * (0.48 + style.pixelScale * 0.24) * 0.36);
           const pixelRowWidth = isSquareReplacement
-            ? replacementSize
+            ? cellWidth * Math.min(0.86, replacementActivatedScale)
             : segmentWidth *
               bounds.width *
               (0.7 + activation * (0.52 + style.pixelScale * 0.42));
           const pixelRowHeight = isSquareReplacement
-            ? replacementSize
+            ? cellHeight * Math.min(0.82, replacementActivatedScale)
             : Math.max(
                 1,
                 Math.round(
@@ -595,26 +651,54 @@ export default function HalftoneMountain() {
                 ),
               );
           const replacementJitterX = isSquareReplacement
-            ? (random(PIXEL_SEED + layerIndex * 31, segment, fieldIndex, 29) - 0.5) *
+            ? (random(
+                PIXEL_SEED,
+                replacementColumn,
+                replacementRow,
+                1 + layerIndex,
+              ) -
+                0.5) *
               cellWidth *
-              0.22
+              0.06
             : 0;
           const replacementJitterY = isSquareReplacement
-            ? (random(PIXEL_SEED + layerIndex * 37, segment, fieldIndex, 31) - 0.5) *
+            ? (random(
+                PIXEL_SEED,
+                replacementColumn,
+                replacementRow,
+                5 + layerIndex,
+              ) -
+                0.5) *
               cellHeight *
-              0.9
+              0.045
             : 0;
-          context.globalAlpha = Math.min(
-            1,
-            (style.opacityBase +
-              style.opacityRange * 0.65 +
-              activation * style.activationAlpha * 0.24) *
-              lineFootFade,
-          );
+          const replacementFadeAlpha = 0.34 + replacementFootFade * 0.66;
+          context.globalAlpha = isSquareReplacement
+            ? Math.min(
+                1,
+                (style.opacityBase + replacementDensity * style.opacityRange) *
+                  replacementFadeAlpha +
+                  activation * style.activationAlpha * 0.26,
+              )
+            : Math.min(
+                1,
+                (style.opacityBase +
+                  style.opacityRange * 0.65 +
+                  activation * style.activationAlpha * 0.24) *
+                  lineFootFade,
+              );
           context.fillRect(
-            Math.round(segmentX * bounds.width + replacementJitterX),
             Math.round(
-              field.y * bounds.height + replacementJitterY - pixelRowHeight / 2,
+              (isSquareReplacement
+                ? (replacementColumn + 0.5) * cellWidth - pixelRowWidth / 2
+                : segmentX * bounds.width) + replacementJitterX,
+            ),
+            Math.round(
+              (isSquareReplacement
+                ? (replacementRow + 0.5) * cellHeight
+                : field.y * bounds.height) +
+                replacementJitterY -
+                pixelRowHeight / 2,
             ),
             Math.max(1, Math.round(pixelRowWidth)),
             pixelRowHeight,
