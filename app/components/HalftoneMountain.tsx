@@ -8,6 +8,7 @@ const INITIAL_SEED = 6611;
 
 type Position = { x: number; y: number };
 type Layer = "far" | "front";
+type RidgePoint = { x: number; y: number };
 
 type LineField = {
   layer: Layer;
@@ -32,6 +33,31 @@ const LINE_FIELDS: LineField[] = [
   { layer: "front", y: 0.91, start: 0.01, end: 0.97, gap: 0.08 },
 ];
 
+const RIDGE_POINTS: Record<Layer, RidgePoint[]> = {
+  far: [
+    { x: 0, y: 0.7 },
+    { x: 0.11, y: 0.62 },
+    { x: 0.25, y: 0.38 },
+    { x: 0.36, y: 0.49 },
+    { x: 0.56, y: 0.15 },
+    { x: 0.65, y: 0.28 },
+    { x: 0.76, y: 0.57 },
+    { x: 0.87, y: 0.48 },
+    { x: 1, y: 0.68 },
+  ],
+  front: [
+    { x: 0, y: 0.84 },
+    { x: 0.12, y: 0.72 },
+    { x: 0.28, y: 0.45 },
+    { x: 0.39, y: 0.63 },
+    { x: 0.53, y: 0.56 },
+    { x: 0.7, y: 0.49 },
+    { x: 0.8, y: 0.57 },
+    { x: 0.9, y: 0.7 },
+    { x: 1, y: 0.84 },
+  ],
+};
+
 function random(seed: number, column: number, row: number, channel: number) {
   let value =
     seed ^
@@ -51,23 +77,44 @@ function nextSeed(seed: number) {
   return (Math.imul(seed, 1664525) + 1013904223) >>> 0;
 }
 
-function ridge(layer: Layer, x: number, seed: number) {
-  const phase = seed * 0.000013;
-  if (layer === "far") {
-    const left = gaussian(x, 0.22, 0.18) * 0.29;
-    const center = gaussian(x, 0.5, 0.2) * 0.48;
-    const right = gaussian(x, 0.79, 0.17) * 0.31;
-    return 0.72 - Math.max(left, center, right) - Math.sin(x * 15 + phase) * 0.009;
-  }
-  const left = gaussian(x, 0.2, 0.14) * 0.34;
-  const main = gaussian(x, 0.52, 0.14) * 0.58;
-  const right = gaussian(x, 0.79, 0.13) * 0.42;
-  return 0.92 - Math.max(left, main, right) - Math.sin(x * 19 + phase) * 0.011;
+function smoothStep(edge0: number, edge1: number, value: number) {
+  const progress = Math.max(0, Math.min(1, (value - edge0) / (edge1 - edge0)));
+  return progress * progress * (3 - 2 * progress);
 }
 
-function layerBase(layer: Layer, x: number, seed: number) {
-  const base = layer === "far" ? 0.75 : 0.93;
-  return base + Math.sin(x * 9 + seed * 0.000009) * 0.006;
+function smoothFalloff(distance: number, radius: number) {
+  return 1 - smoothStep(0, radius, distance);
+}
+
+function ridge(layer: Layer, x: number, seed: number) {
+  const points = RIDGE_POINTS[layer];
+  const layerIndex = layer === "far" ? 0 : 1;
+  const positionShift = (random(seed, layerIndex, 0, 31) - 0.5) * 0.024;
+  const profileX = Math.max(0, Math.min(1, x + positionShift));
+  let segment = 0;
+  while (segment < points.length - 2 && profileX > points[segment + 1].x) {
+    segment += 1;
+  }
+  const from = points[segment];
+  const to = points[segment + 1];
+  const progress = smoothStep(from.x, to.x, profileX);
+  const fromOffset = (random(seed, segment, layerIndex, 37) - 0.5) * 0.024;
+  const toOffset = (random(seed, segment + 1, layerIndex, 37) - 0.5) * 0.024;
+  const profile = from.y + fromOffset + (to.y + toOffset - from.y - fromOffset) * progress;
+  const phase = seed * 0.000013;
+  const irregularity =
+    Math.sin(x * (layer === "far" ? 17 : 23) + phase) * 0.008 +
+    Math.sin(x * (layer === "far" ? 41 : 53) - phase * 0.7) * 0.004;
+  return Math.max(0.09, Math.min(0.88, profile + irregularity));
+}
+
+function layerFoot(layer: Layer, x: number, seed: number) {
+  const foot = layer === "far" ? 0.82 : 0.95;
+  return (
+    foot +
+    Math.sin(x * (layer === "far" ? 9 : 11) + seed * 0.000009) * 0.018 +
+    Math.sin(x * (layer === "far" ? 27 : 31) - seed * 0.000006) * 0.008
+  );
 }
 
 function density(layer: Layer, x: number, y: number, seed: number) {
@@ -156,17 +203,23 @@ export default function HalftoneMountain() {
           const x = (column + 0.5) / grid.columns;
           const y = (row + 0.5) / grid.rows;
           const mountainRidge = ridge(layer, x, seed);
-          const base = layerBase(layer, x, seed);
-          if (x < 0.025 || x > 0.975 || y < mountainRidge || y > base) continue;
+          const foot = layerFoot(layer, x, seed);
+          if (x < 0.025 || x > 0.975 || y < mountainRidge || y > foot) continue;
 
           const ridgeDistance = y - mountainRidge;
           const ridgeBand = ridgeDistance >= 0 && ridgeDistance < 0.038;
           const baseDensity = density(layer, x, y, seed);
+          const terrainDepth = ridgeDistance / Math.max(0.08, foot - mountainRidge);
+          const footFade = 1 - smoothStep(0.72, 1, terrainDepth);
           const distance = position
             ? Math.hypot(x - position.x, (y - position.y) * 1.3)
             : Infinity;
-          const influence = Math.max(0, 1 - distance / 0.14);
-          const visibleChance = Math.min(0.98, Math.max(ridgeBand ? 0.86 : 0, baseDensity) + influence * 0.1);
+          const influence = smoothFalloff(distance, 0.19);
+          const silhouetteChance = Math.max(ridgeBand ? 0.86 : 0, baseDensity);
+          const visibleChance = Math.min(
+            0.98,
+            silhouetteChance * (0.12 + footFade * 0.88) + influence * 0.2,
+          );
           if (random(seed + layerIndex * 97, column, row, 0) > visibleChance) continue;
 
           const jitterX = (random(seed, column, row, 1 + layerIndex) - 0.5) * cellWidth * 0.34;
@@ -174,11 +227,13 @@ export default function HalftoneMountain() {
           const sizeNoise = 0.82 + random(seed, column, row, 5 + layerIndex) * 0.36;
           const densityScale = layer === "far" ? 0.68 + baseDensity * 0.35 : 0.78 + baseDensity * 0.62;
           const radiusBase = Math.min(cellWidth, cellHeight) * (layer === "far" ? 0.12 : 0.17);
-          const radius = radiusBase * densityScale * sizeNoise * (1 + influence * 0.18);
+          const footScale = 0.5 + footFade * 0.5;
+          const radius = radiusBase * densityScale * sizeNoise * footScale * (1 + influence * 0.42);
+          const fadeAlpha = 0.35 + footFade * 0.65;
           context.globalAlpha =
             layer === "far"
-              ? 0.2 + baseDensity * 0.26 + influence * 0.04
-              : 0.42 + baseDensity * 0.48 + influence * 0.05;
+              ? (0.2 + baseDensity * 0.26) * fadeAlpha + influence * 0.06
+              : (0.42 + baseDensity * 0.48) * fadeAlpha + influence * 0.1;
           context.beginPath();
           context.arc(
             (column + 0.5) * cellWidth + jitterX,
@@ -194,9 +249,8 @@ export default function HalftoneMountain() {
       context.lineCap = "butt";
       LINE_FIELDS.filter((field) => field.layer === layer).forEach((field, fieldIndex) => {
         const lineY = field.y + (random(seed, fieldIndex, layerIndex, 12) - 0.5) * 0.014;
-        const pointerInfluence = position ? Math.max(0, 1 - Math.abs(position.y - lineY) / 0.12) : 0;
-        const start = field.start - pointerInfluence * 0.012;
-        const end = field.end + pointerInfluence * 0.018;
+        const start = field.start;
+        const end = field.end;
         const segmentCount = Math.max(3, Math.round((end - start) * grid.columns));
         const segmentWidth = (end - start) / segmentCount;
         context.lineWidth = layer === "far" ? 0.55 : 0.85;
@@ -204,15 +258,18 @@ export default function HalftoneMountain() {
         for (let segment = 0; segment < segmentCount; segment += 1) {
           const segmentX = start + segment * segmentWidth;
           const mountainRidge = ridge(layer, segmentX, seed);
-          const base = layerBase(layer, segmentX, seed);
-          if (lineY < mountainRidge - 0.014 || lineY > base + 0.014) continue;
+          const foot = layerFoot(layer, segmentX, seed);
+          if (lineY < mountainRidge - 0.014 || lineY > foot + 0.014) continue;
           const localInfluence = position
-            ? Math.max(0, 1 - Math.hypot(segmentX - position.x, (lineY - position.y) * 1.3) / 0.14)
+            ? smoothFalloff(
+                Math.hypot(segmentX - position.x, (lineY - position.y) * 1.3),
+                0.19,
+              )
             : 0;
-          const gapChance = Math.max(0.02, field.gap - localInfluence * 0.08);
+          const gapChance = Math.max(0.01, field.gap - localInfluence * 0.2);
           if (random(seed, segment, fieldIndex, 18 + layerIndex) < gapChance) continue;
           const x1 = segmentX * bounds.width;
-          const x2 = (segmentX + segmentWidth * (0.78 + localInfluence * 0.18)) * bounds.width;
+          const x2 = (segmentX + segmentWidth * (0.78 + localInfluence * 1.45)) * bounds.width;
           const py = lineY * bounds.height;
           context.beginPath();
           context.moveTo(x1, py);

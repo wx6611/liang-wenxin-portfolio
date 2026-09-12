@@ -162,12 +162,8 @@ footer{flex-direction:column;gap:10px}
 .home .intro-lead{
   text-align:left;
   letter-spacing:0;
-}
-.home .intro-lead span{
-  display:block;
-  width:auto;
-  white-space:nowrap;
-  text-align:left;
+  white-space:normal;
+  text-wrap:wrap;
 }
 .home .intro-body,
 .home .intro-closing{
@@ -190,5 +186,4 @@ footer{flex-direction:column;gap:10px}
 @media(max-width:640px){
   .home .cover-name{font-size:clamp(27px,5.1vw,35px)}
   .home .intro-lead{font-size:clamp(14px,4vw,24px)}
-  .home .intro-lead span{white-space:normal}
 }
