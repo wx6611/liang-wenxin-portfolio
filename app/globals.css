@@ -107,3 +107,4 @@ footer{flex-direction:column;gap:10px}
 .home .intro-closing{margin-bottom:45px}
 .home .category-header em{font-size:14px}
 @media(max-width:767px){.home .cover-name{font-size:clamp(64px,18vw,80px)}.home .intro-body{font-size:24px;line-height:1.35}}
+ .home .closing{font-size:20px}
