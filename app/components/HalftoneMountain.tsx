@@ -315,13 +315,17 @@ function generateLayer(
       0.11,
       layer === "front" ? 0.28 : 0.24,
     );
-    const lineYMin = Math.max(0.34, style.fadeStart - 0.2);
-    const lineYAnchor = lerp(lineYMin, style.fadeEnd, lineProgress);
+    const fullLineYMin = Math.max(0.34, style.fadeStart - 0.2);
+    const fullLineYMax = style.fadeEnd;
+    const lineYInset = (fullLineYMax - fullLineYMin) / 6;
+    const lineYMin = fullLineYMin + lineYInset;
+    const lineYMax = fullLineYMax - lineYInset;
+    const lineYAnchor = lerp(lineYMin, lineYMax, lineProgress);
     return {
       y: clamp(
         lineYAnchor + sample(seed, layerIndex, channel + 2, -0.018, 0.018),
         lineYMin,
-        style.fadeEnd,
+        lineYMax,
       ),
       start,
       end: Math.min(0.98, start + length),
