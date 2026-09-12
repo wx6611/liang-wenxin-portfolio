@@ -156,10 +156,18 @@ footer{flex-direction:column;gap:10px}
   max-width:100%;
   inline-size:100%;
   max-inline-size:100%;
+  margin-left:0;
+  margin-right:0;
   text-align:justify;
   text-justify:inter-character;
 }
-.home .intro-lead span{display:block;white-space:nowrap}
+.home .intro-lead span{
+  display:block;
+  width:100%;
+  white-space:nowrap;
+  text-align:justify;
+  text-align-last:justify;
+}
 .home .intro-body,
 .home .intro-closing{
   font-size:24px;
@@ -179,5 +187,5 @@ footer{flex-direction:column;gap:10px}
 @media(max-width:640px){
   .home .cover-name{font-size:clamp(27px,5.1vw,35px)}
   .home .intro-lead{font-size:clamp(14px,4vw,24px)}
-  .home .intro-lead span{white-space:normal}
+  .home .intro-lead span{white-space:normal;text-align-last:left}
 }

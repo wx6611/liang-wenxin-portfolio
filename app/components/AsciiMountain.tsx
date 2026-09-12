@@ -10,23 +10,58 @@ import {
 
 const DESKTOP_GRID = { columns: 84, rows: 34 };
 const MOBILE_GRID = { columns: 52, rows: 26 };
-const CHARACTERS = ["•", "•", "."] as const;
+const CHARACTERS = ["•", "•", ".", "·"] as const;
 const INITIAL_SEED = 6611;
+
+const LINE_FIELDS = [
+  { row: 0.39, start: 0.48, end: 0.66, gap: 0.08 },
+  { row: 0.44, start: 0.43, end: 0.72, gap: 0.14 },
+  { row: 0.49, start: 0.52, end: 0.78, gap: 0.22 },
+  { row: 0.55, start: 0.12, end: 0.46, gap: 0.18 },
+  { row: 0.61, start: 0.35, end: 0.87, gap: 0.12 },
+  { row: 0.66, start: 0.08, end: 0.39, gap: 0.3 },
+  { row: 0.7, start: 0.62, end: 0.96, gap: 0.2 },
+  { row: 0.76, start: 0.18, end: 0.58, gap: 0.16 },
+  { row: 0.81, start: 0.04, end: 0.34, gap: 0.1 },
+  { row: 0.85, start: 0.43, end: 0.91, gap: 0.24 },
+  { row: 0.89, start: 0.02, end: 0.98, gap: 0.08 },
+] as const;
 
 type Position = {
   x: number;
   y: number;
 };
 
-type DensityMask = {
-  columns: number;
-  rows: number;
-  values: Float32Array;
-};
-
 function gaussian(value: number, center: number, spread: number) {
   const distance = (value - center) / spread;
   return Math.exp(-0.5 * distance * distance);
+}
+
+function clusterDensity(x: number, y: number, seed: number) {
+  const warpedX = x + Math.sin(y * 17 + seed * 0.000011) * 0.018;
+  const warpedY = y + Math.sin(x * 23 + seed * 0.000019) * 0.014;
+  const cluster = (cx: number, cy: number, sx: number, sy: number) =>
+    gaussian(warpedX, cx, sx) * gaussian(warpedY, cy, sy);
+  const dense =
+    cluster(0.55, 0.29, 0.07, 0.12) * 0.92 +
+    cluster(0.46, 0.49, 0.105, 0.17) * 0.88 +
+    cluster(0.24, 0.64, 0.1, 0.15) * 0.68 +
+    cluster(0.19, 0.82, 0.15, 0.085) * 0.9 +
+    cluster(0.62, 0.82, 0.16, 0.1) * 0.94 +
+    cluster(0.79, 0.59, 0.085, 0.13) * 0.7;
+  const sparse =
+    cluster(0.36, 0.62, 0.075, 0.115) * 0.84 +
+    cluster(0.65, 0.49, 0.08, 0.12) * 0.92 +
+    cluster(0.52, 0.72, 0.055, 0.07) * 1.05 +
+    cluster(0.84, 0.73, 0.08, 0.11) * 0.74;
+  const lowFrequency =
+    Math.sin(x * 10 + y * 7 + seed * 0.000013) * 0.07 +
+    Math.sin(x * 17 - y * 5 + seed * 0.000007) * 0.045;
+  const score = 0.18 + dense - sparse + lowFrequency;
+  if (score > 0.72) return 0.94;
+  if (score > 0.4) return 0.64;
+  if (score > 0.18) return 0.27;
+  return 0.08;
 }
 
 function mountainRidge(x: number, seed: number) {
@@ -65,7 +100,6 @@ export default function AsciiMountain() {
   const frameRef = useRef<number | null>(null);
   const recoveryRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isVisibleRef = useRef(true);
-  const [mask, setMask] = useState<DensityMask | null>(null);
   const [position, setPosition] = useState<Position | null>(null);
   const [seed, setSeed] = useState(INITIAL_SEED);
   const [reducedMotion, setReducedMotion] = useState(false);
@@ -89,40 +123,9 @@ export default function AsciiMountain() {
   }, []);
 
   useEffect(() => {
-    const grid = isMobile ? MOBILE_GRID : DESKTOP_GRID;
-    const source = new window.Image();
-    source.src = "/images/home/ascii-mountain-reference.png";
-    source.onload = () => {
-      const sampler = document.createElement("canvas");
-      sampler.width = grid.columns;
-      sampler.height = grid.rows;
-      const context = sampler.getContext("2d", { willReadFrequently: true });
-      if (!context) return;
-      context.imageSmoothingEnabled = true;
-      context.imageSmoothingQuality = "high";
-      context.drawImage(source, 0, 0, grid.columns, grid.rows);
-      const pixels = context.getImageData(0, 0, grid.columns, grid.rows).data;
-      const values = new Float32Array(grid.columns * grid.rows);
-
-      for (let index = 0; index < values.length; index += 1) {
-        const pixel = index * 4;
-        const luminance =
-          pixels[pixel] * 0.2126 +
-          pixels[pixel + 1] * 0.7152 +
-          pixels[pixel + 2] * 0.0722;
-        values[index] = Math.max(0, (246 - luminance) / 230);
-      }
-
-      setMask({ ...grid, values });
-    };
-    source.onerror = () => {
-      setMask({ ...grid, values: new Float32Array(grid.columns * grid.rows).fill(0.5) });
-    };
-  }, [isMobile]);
-
-  useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas || !mask) return;
+    if (!canvas) return;
+    const grid = isMobile ? MOBILE_GRID : DESKTOP_GRID;
     const bounds = canvas.getBoundingClientRect();
     const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
     canvas.width = Math.round(bounds.width * pixelRatio);
@@ -132,42 +135,22 @@ export default function AsciiMountain() {
     context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
     context.clearRect(0, 0, bounds.width, bounds.height);
 
-    const cellWidth = bounds.width / mask.columns;
-    const cellHeight = bounds.height / mask.rows;
+    const cellWidth = bounds.width / grid.columns;
+    const cellHeight = bounds.height / grid.rows;
     const fontSize = Math.max(5, Math.min(cellWidth * 1.28, cellHeight * 1.42));
     context.font = `400 ${fontSize}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
     context.fillStyle = "#111";
     context.textAlign = "center";
     context.textBaseline = "middle";
 
-    for (let row = 0; row < mask.rows; row += 1) {
-      for (let column = 0; column < mask.columns; column += 1) {
-        const index = row * mask.columns + column;
-        const referenceTexture = mask.values[index];
-        const x = (column + 0.5) / mask.columns;
-        const y = (row + 0.5) / mask.rows;
+    for (let row = 0; row < grid.rows; row += 1) {
+      for (let column = 0; column < grid.columns; column += 1) {
+        const x = (column + 0.5) / grid.columns;
+        const y = (row + 0.5) / grid.rows;
         const ridge = mountainRidge(x, seed);
         const base = 0.9 + Math.sin(x * 8 + seed * 0.00001) * 0.008;
         const insideMountain = x >= 0.035 && x <= 0.965 && y >= ridge && y <= base;
-        const scanBands = [
-          { row: 0.55, start: 0.1, end: 0.52 },
-          { row: 0.655, start: 0.39, end: 0.88 },
-          { row: 0.76, start: 0.06, end: 0.43 },
-          { row: 0.855, start: 0.29, end: 0.97 },
-        ];
-        const scanDistance = Math.min(
-          ...scanBands.map((band, scanIndex) =>
-            x >= band.start && x <= band.end
-              ? Math.abs(
-                  y - band.row -
-                    (cellRandom(seed, scanIndex, 0, 12) - 0.5) * 0.024,
-                )
-              : 1,
-          ),
-        );
-        const scanLine = scanDistance < 0.015;
-        const nearMountain = x >= 0.018 && x <= 0.982 && y >= ridge - 0.008 && y <= base + 0.012;
-        if (!insideMountain && !(scanLine && nearMountain)) continue;
+        if (!insideMountain) continue;
 
         const depth = Math.max(0, Math.min(1, (y - ridge) / Math.max(0.08, base - ridge)));
         const distance = position
@@ -179,34 +162,12 @@ export default function AsciiMountain() {
         const influence = Math.max(0, 1 - distance / 0.13);
         const ridgeDistance = y - ridge;
         const ridgeBand = ridgeDistance >= 0 && ridgeDistance <= 0.045;
-        const denseLeftSlope =
-          gaussian(x, 0.47, 0.14) * gaussian(y, 0.55, 0.22) * 0.42;
-        const denseLowerRight =
-          gaussian(x, 0.66, 0.16) * gaussian(y, 0.79, 0.16) * 0.38;
-        const sparseValley =
-          gaussian(x, 0.37, 0.075) * gaussian(y, 0.64, 0.15) * 0.42;
-        const sparseRight =
-          gaussian(x, 0.8, 0.085) * gaussian(y, 0.63, 0.14) * 0.38;
-        const hollow =
-          gaussian(x, 0.57, 0.045) * gaussian(y, 0.7, 0.065) * 0.3;
-        const smallTexture =
-          Math.sin(x * 19 + y * 11 + seed * 0.000017) * 0.035 +
-          Math.sin(x * 37 - y * 15 + seed * 0.000009) * 0.025;
-        const referenceModulation = (referenceTexture - 0.5) * 0.18;
-        const macroDensity =
-          denseLeftSlope + denseLowerRight - sparseValley - sparseRight - hollow;
-        const baseVisibility = Math.max(
-          0.16,
-          Math.min(
-            0.9,
-            0.43 + depth * 0.1 + macroDensity + smallTexture + referenceModulation,
-          ),
-        );
+        const baseVisibility = clusterDensity(x, y, seed);
         const visibility = ridgeBand ? Math.max(0.88, baseVisibility) : baseVisibility;
         const recalculatedVisibility = Math.min(0.94, visibility + influence * 0.16);
         if (
           cellRandom(seed, column, row, 0) > recalculatedVisibility ||
-          (!insideMountain && cellRandom(seed, column, row, 11) > 0.48)
+          visibility < 0.1 && cellRandom(seed, column, row, 11) > 0.14
         ) {
           continue;
         }
@@ -214,11 +175,6 @@ export default function AsciiMountain() {
         let character: string;
 
         if (
-          scanLine &&
-          cellRandom(seed, column, row, 1) < 0.82 + influence * 0.08
-        ) {
-          character = cellRandom(seed, column, row, 2) > 0.45 ? "—" : "_";
-        } else if (
           (depth < 0.12 || visibility < 0.43) &&
           cellRandom(seed, column, row, 3) > 0.36
         ) {
@@ -231,17 +187,43 @@ export default function AsciiMountain() {
           character = CHARACTERS[characterIndex];
         }
 
-        context.globalAlpha =
-          0.44 + Math.min(0.54, visibility * 0.62 + (ridgeBand ? 0.12 : 0));
+        const sizeVariation = 0.9 + cellRandom(seed, column, row, 8) * 0.2;
+        const jitterX = (cellRandom(seed, column, row, 9) - 0.5) * cellWidth * 0.24;
+        const jitterY = (cellRandom(seed, column, row, 10) - 0.5) * cellHeight * 0.18;
+        context.font = `400 ${fontSize * sizeVariation}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
+        context.globalAlpha = 0.42 + Math.min(0.56, visibility * 0.62 + (ridgeBand ? 0.14 : 0));
         context.fillText(
           character,
-          (column + 0.5) * cellWidth,
-          (row + 0.5) * cellHeight,
+          (column + 0.5) * cellWidth + jitterX,
+          (row + 0.5) * cellHeight + jitterY,
         );
       }
     }
+
+    context.font = `400 ${fontSize * 0.92}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
+    LINE_FIELDS.forEach((field, fieldIndex) => {
+      const row = field.row + (cellRandom(seed, fieldIndex, 0, 14) - 0.5) * 0.018;
+      const pointerNearRow = position ? Math.max(0, 1 - Math.abs(position.y - row) / 0.1) : 0;
+      const extension = pointerNearRow * 0.018;
+      const startColumn = Math.floor((field.start - extension) * grid.columns);
+      const endColumn = Math.ceil((field.end + extension) * grid.columns);
+      for (let column = startColumn; column <= endColumn; column += 1) {
+        const x = (column + 0.5) / grid.columns;
+        const ridge = mountainRidge(x, seed);
+        const base = 0.9 + Math.sin(x * 8 + seed * 0.00001) * 0.008;
+        if (row < ridge - 0.018 || row > base + 0.018) continue;
+        const localInfluence = position
+          ? Math.max(0, 1 - Math.hypot(x - position.x, (row - position.y) * 1.25) / 0.13)
+          : 0;
+        const gap = Math.max(0.03, field.gap - localInfluence * 0.1);
+        if (cellRandom(seed, column, fieldIndex, 15) < gap) continue;
+        const character = cellRandom(seed, column, fieldIndex, 16) > 0.34 ? "—" : "_";
+        context.globalAlpha = 0.68 + localInfluence * 0.08;
+        context.fillText(character, (column + 0.5) * cellWidth, row * bounds.height);
+      }
+    });
     context.globalAlpha = 1;
-  }, [mask, position, renderVersion, seed]);
+  }, [isMobile, position, renderVersion, seed]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
