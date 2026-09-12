@@ -64,8 +64,8 @@ const LAYER_STYLES: Record<Layer, LayerStyle> = {
     opacityRange: 0.12,
     activationAlpha: 0.14,
     densityBoost: 0.38,
-    fadeStart: 0.7,
-    fadeEnd: 0.8,
+    fadeStart: 0.75,
+    fadeEnd: 0.81,
     peakMin: 0.2,
     peakMax: 0.27,
     foot: 0.8,
@@ -81,8 +81,8 @@ const LAYER_STYLES: Record<Layer, LayerStyle> = {
     opacityRange: 0.14,
     activationAlpha: 0.17,
     densityBoost: 0.44,
-    fadeStart: 0.75,
-    fadeEnd: 0.86,
+    fadeStart: 0.8,
+    fadeEnd: 0.87,
     peakMin: 0.27,
     peakMax: 0.36,
     foot: 0.86,
@@ -98,8 +98,8 @@ const LAYER_STYLES: Record<Layer, LayerStyle> = {
     opacityRange: 0.18,
     activationAlpha: 0.2,
     densityBoost: 0.5,
-    fadeStart: 0.8,
-    fadeEnd: 0.9,
+    fadeStart: 0.85,
+    fadeEnd: 0.92,
     peakMin: 0.33,
     peakMax: 0.43,
     foot: 0.91,
@@ -109,21 +109,21 @@ const LAYER_STYLES: Record<Layer, LayerStyle> = {
     xEnd: 0.93,
   },
   front: {
-    densityScale: 1.02,
-    pixelScale: 1.04,
-    opacityBase: 0.58,
-    opacityRange: 0.22,
+    densityScale: 1.12,
+    pixelScale: 1.1,
+    opacityBase: 0.64,
+    opacityRange: 0.24,
     activationAlpha: 0.26,
     densityBoost: 0.58,
-    fadeStart: 0.85,
-    fadeEnd: 0.95,
-    peakMin: 0.4,
-    peakMax: 0.5,
-    foot: 0.96,
+    fadeStart: 0.9,
+    fadeEnd: 0.96,
+    peakMin: 0.34,
+    peakMax: 0.44,
+    foot: 0.97,
     lineCount: 6,
     lineGap: 0.18,
-    xStart: 0.09,
-    xEnd: 0.91,
+    xStart: 0.06,
+    xEnd: 0.94,
   },
 };
 
@@ -229,6 +229,7 @@ function generateLayer(
     foot - 0.07,
   );
   const phase = sample(seed, layerIndex, 12, 0, Math.PI * 2);
+  const densityMassScale = layer === "front" ? 1.16 : 1;
 
   const ridge: RidgePoint[] = [
     { x: style.xStart, y: foot - sample(seed, layerIndex, 13, 0.055, 0.12) },
@@ -252,22 +253,22 @@ function generateLayer(
     {
       x: leftX + sample(seed, layerIndex, 17, -0.025, 0.025),
       y: leftY + sample(seed, layerIndex, 18, 0.065, 0.14),
-      spreadX: sample(seed, layerIndex, 19, 0.075, 0.13),
-      spreadY: sample(seed, layerIndex, 20, 0.08, 0.14),
+      spreadX: sample(seed, layerIndex, 19, 0.075, 0.13) * densityMassScale,
+      spreadY: sample(seed, layerIndex, 20, 0.08, 0.14) * densityMassScale,
       weight: sample(seed, layerIndex, 21, 0.72, 1.02),
     },
     {
       x: mainX + sample(seed, layerIndex, 22, -0.025, 0.025),
       y: mainY + sample(seed, layerIndex, 23, 0.07, 0.145),
-      spreadX: sample(seed, layerIndex, 24, 0.075, 0.125),
-      spreadY: sample(seed, layerIndex, 25, 0.09, 0.15),
+      spreadX: sample(seed, layerIndex, 24, 0.075, 0.125) * densityMassScale,
+      spreadY: sample(seed, layerIndex, 25, 0.09, 0.15) * densityMassScale,
       weight: sample(seed, layerIndex, 26, 0.88, 1.18),
     },
     {
       x: rightX + sample(seed, layerIndex, 27, -0.025, 0.025),
       y: rightY + sample(seed, layerIndex, 28, 0.065, 0.14),
-      spreadX: sample(seed, layerIndex, 29, 0.08, 0.145),
-      spreadY: sample(seed, layerIndex, 30, 0.08, 0.145),
+      spreadX: sample(seed, layerIndex, 29, 0.08, 0.145) * densityMassScale,
+      spreadY: sample(seed, layerIndex, 30, 0.08, 0.145) * densityMassScale,
       weight: sample(seed, layerIndex, 31, 0.7, 1.06),
     },
   ];
@@ -299,7 +300,7 @@ function generateLayer(
         layerIndex,
         channel + 2,
         Math.max(0.34, style.fadeStart - 0.2),
-        style.fadeEnd + 0.035,
+        style.fadeEnd,
       ),
       start,
       end: Math.min(0.98, start + length),
@@ -501,7 +502,7 @@ export default function HalftoneMountain() {
 
           const ridgeDistance = y - mountainRidge;
           const terrainDepth = ridgeDistance / Math.max(0.08, foot - mountainRidge);
-          const depthFade = 1 - smoothStep(0.64, 1, terrainDepth);
+          const depthFade = 1 - smoothStep(0.82, 1, terrainDepth);
           const verticalFade = 1 - smoothStep(style.fadeStart, style.fadeEnd, y);
           const footFade = depthFade * verticalFade;
           const baseDensity = density(layer, layerComposition, x, y);
@@ -515,7 +516,7 @@ export default function HalftoneMountain() {
           const silhouetteChance = Math.max(ridgeBand ? ridgeChance : 0, baseDensity);
           const visibleChance = Math.min(
             0.98,
-            silhouetteChance * (0.14 + footFade * 0.86) +
+            silhouetteChance * (0.04 + footFade * 0.96) +
               activation * style.densityBoost * 0.42,
           );
           if (random(PIXEL_SEED + layerIndex * 97, column, row, 0) > visibleChance) continue;
@@ -526,7 +527,7 @@ export default function HalftoneMountain() {
             (random(PIXEL_SEED, column, row, 5 + layerIndex) - 0.5) * cellHeight * 0.045;
           const sizeNoise = 0.93 + random(PIXEL_SEED, column, row, 9 + layerIndex) * 0.14;
           const pixelScale = (0.2 + baseDensity * 0.72) * style.pixelScale;
-          const footScale = 0.43 + footFade * 0.57;
+          const footScale = 0.7 + footFade * 0.3;
           const sizeBoost = 0.48 + style.pixelScale * 0.24;
           const activatedScale =
             pixelScale * sizeNoise * footScale * (1 + activation * sizeBoost * 0.36);
@@ -556,7 +557,7 @@ export default function HalftoneMountain() {
           const foot = layerFoot(layer, layerComposition, segmentX);
           if (field.y < mountainRidge - 0.014 || field.y > foot + 0.014) continue;
           const lineFootFade = 1 - smoothStep(style.fadeStart, style.fadeEnd, field.y);
-          if (lineFootFade <= 0.02) continue;
+          if (lineFootFade <= 0.16) continue;
           const localInfluence = positionRef.current
             ? smoothFalloff(
                 Math.hypot(
@@ -584,7 +585,7 @@ export default function HalftoneMountain() {
             (style.opacityBase +
               style.opacityRange * 0.65 +
               activation * style.activationAlpha * 0.24) *
-              (0.26 + lineFootFade * 0.74),
+              lineFootFade,
           );
           context.fillRect(
             Math.round(segmentX * bounds.width),
