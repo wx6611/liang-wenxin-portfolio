@@ -158,15 +158,16 @@ footer{flex-direction:column;gap:10px}
   max-inline-size:100%;
   margin-left:0;
   margin-right:0;
-  text-align:justify;
-  text-justify:inter-character;
+}
+.home .intro-lead{
+  text-align:left;
+  letter-spacing:0;
 }
 .home .intro-lead span{
   display:block;
-  width:100%;
+  width:auto;
   white-space:nowrap;
-  text-align:justify;
-  text-align-last:justify;
+  text-align:left;
 }
 .home .intro-body,
 .home .intro-closing{
@@ -174,6 +175,8 @@ footer{flex-direction:column;gap:10px}
   line-height:1.35;
   font-weight:400;
   letter-spacing:0;
+  text-align:justify;
+  text-justify:inter-character;
 }
 
 /* Home cover sizing annotations */
@@ -187,5 +190,5 @@ footer{flex-direction:column;gap:10px}
 @media(max-width:640px){
   .home .cover-name{font-size:clamp(27px,5.1vw,35px)}
   .home .intro-lead{font-size:clamp(14px,4vw,24px)}
-  .home .intro-lead span{white-space:normal;text-align-last:left}
+  .home .intro-lead span{white-space:normal}
 }
