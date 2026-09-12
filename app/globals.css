@@ -100,3 +100,10 @@ footer{flex-direction:column;gap:10px}
 .section-07 .asset-slot.slots{display:grid;grid-template-columns:1fr 1fr;gap:16px}.section-07 .asset-slot.slots figure:nth-child(2){grid-row:span 2}.section-08 .asset-slot.slots{display:block;max-width:1200px;margin:0 auto}.section-08 .asset-slot.slots figure{width:100%}
 .section-09 .asset-slot.slots figure .placeholder-box{aspect-ratio:9/16;min-height:0}
 @media(max-width:767px){.section-05 .asset-slot.slots,.section-06 .asset-slot.slots,.section-09 .asset-slot.slots{grid-template-columns:repeat(2,1fr)}.section-05 .asset-slot.slots figure:first-child{grid-column:1/-1}.section-07 .asset-slot.slots{grid-template-columns:1fr}.section-07 .asset-slot.slots figure:nth-child(2){grid-row:auto}}
+/* Home typography refinements from browser review */
+.home .site-header{font-size:18px}
+.home .intro-lead{margin-bottom:45px}
+.home .intro-body{font-size:24px;line-height:1.35;margin-bottom:45px}
+.home .intro-closing{margin-bottom:45px}
+.home .category-header em{font-size:14px}
+@media(max-width:767px){.home .cover-name{font-size:clamp(64px,18vw,80px)}.home .intro-body{font-size:24px;line-height:1.35}}
