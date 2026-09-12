@@ -297,14 +297,30 @@ function generateLayer(
 
   const lines = Array.from({ length: style.lineCount }, (_, lineIndex): LineField => {
     const channel = 45 + lineIndex * 4;
-    const start = sample(seed, layerIndex, channel, style.xStart - 0.02, 0.64);
-    const length = sample(seed, layerIndex, channel + 1, 0.16, layer === "front" ? 0.46 : 0.39);
+    const lineProgress = (lineIndex + 0.65) / (style.lineCount + 0.3);
+    const startAnchor = lerp(
+      style.xStart + 0.025,
+      Math.min(0.61, style.xEnd - 0.24),
+      lineProgress,
+    );
+    const start = clamp(
+      startAnchor + sample(seed, layerIndex, channel, -0.045, 0.045),
+      style.xStart - 0.02,
+      style.xEnd - 0.18,
+    );
+    const lengthAnchor =
+      (layer === "front" ? 0.29 : 0.245) + (lineIndex % 3) * 0.035;
+    const length = clamp(
+      lengthAnchor + sample(seed, layerIndex, channel + 1, -0.035, 0.035),
+      0.17,
+      layer === "front" ? 0.42 : 0.36,
+    );
+    const lineYMin = Math.max(0.34, style.fadeStart - 0.2);
+    const lineYAnchor = lerp(lineYMin, style.fadeEnd, lineProgress);
     return {
-      y: sample(
-        seed,
-        layerIndex,
-        channel + 2,
-        Math.max(0.34, style.fadeStart - 0.2),
+      y: clamp(
+        lineYAnchor + sample(seed, layerIndex, channel + 2, -0.018, 0.018),
+        lineYMin,
         style.fadeEnd,
       ),
       start,
@@ -415,7 +431,7 @@ function density(layer: Layer, composition: LayerComposition, x: number, y: numb
     dense -
     hollow +
     Math.sin(x * (11 + layerIndex * 2) + y * 9 + composition.phase) * 0.045;
-  const rawDensity = score > 0.68 ? 0.99 : score > 0.38 ? 0.82 : score > 0.16 ? 0.44 : 0.08;
+  const rawDensity = score > 0.68 ? 0.99 : score > 0.38 ? 0.82 : score > 0.16 ? 0.5 : 0.12;
   return rawDensity * LAYER_STYLES[layer].densityScale;
 }
 
