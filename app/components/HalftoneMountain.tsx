@@ -228,47 +228,43 @@ export default function HalftoneMountain() {
             : Infinity;
           const influence = smoothFalloff(distance, INTERACTION_RADIUS);
           const silhouetteChance = Math.max(ridgeBand ? 0.86 : 0, baseDensity);
-          const densityBoost = layer === "far" ? 0.28 : 0.36;
+          const densityBoost = layer === "far" ? 0.34 : 0.44;
           const visibleChance = Math.min(
             0.98,
             silhouetteChance * (0.12 + footFade * 0.88) + influence * densityBoost,
           );
           if (random(seed + layerIndex * 97, column, row, 0) > visibleChance) continue;
 
-          const jitterX = (random(seed, column, row, 1 + layerIndex) - 0.5) * cellWidth * 0.34;
-          const jitterY = (random(seed, column, row, 3 + layerIndex) - 0.5) * cellHeight * 0.28;
-          const sizeNoise = 0.82 + random(seed, column, row, 5 + layerIndex) * 0.36;
-          const densityScale = layer === "far" ? 0.68 + baseDensity * 0.35 : 0.78 + baseDensity * 0.62;
-          const radiusBase = Math.min(cellWidth, cellHeight) * (layer === "far" ? 0.12 : 0.17);
-          const footScale = 0.5 + footFade * 0.5;
-          const sizeBoost = layer === "far" ? 0.58 : 0.82;
-          const radius =
-            radiusBase * densityScale * sizeNoise * footScale * (1 + influence * sizeBoost);
+          const jitterX = (random(seed, column, row, 1 + layerIndex) - 0.5) * cellWidth * 0.07;
+          const jitterY = (random(seed, column, row, 3 + layerIndex) - 0.5) * cellHeight * 0.05;
+          const sizeNoise = 0.92 + random(seed, column, row, 5 + layerIndex) * 0.16;
+          const pixelScale =
+            layer === "far" ? 0.16 + baseDensity * 0.4 : 0.2 + baseDensity * 0.58;
+          const footScale = 0.44 + footFade * 0.56;
+          const sizeBoost = layer === "far" ? 0.56 : 0.72;
+          const activatedScale = pixelScale * sizeNoise * footScale * (1 + influence * sizeBoost);
+          const pixelWidth = cellWidth * Math.min(layer === "far" ? 0.76 : 0.86, activatedScale);
+          const pixelHeight = cellHeight * Math.min(layer === "far" ? 0.7 : 0.82, activatedScale);
           const fadeAlpha = 0.35 + footFade * 0.65;
           context.globalAlpha =
             layer === "far"
-              ? (0.2 + baseDensity * 0.26) * fadeAlpha + influence * 0.12
-              : (0.42 + baseDensity * 0.48) * fadeAlpha + influence * 0.18;
-          context.beginPath();
-          context.arc(
-            (column + 0.5) * cellWidth + jitterX,
-            (row + 0.5) * cellHeight + jitterY,
-            Math.max(0.45, radius),
-            0,
-            Math.PI * 2,
+              ? (0.2 + baseDensity * 0.26) * fadeAlpha + influence * 0.16
+              : (0.42 + baseDensity * 0.48) * fadeAlpha + influence * 0.24;
+          context.fillRect(
+            Math.round((column + 0.5) * cellWidth + jitterX - pixelWidth / 2),
+            Math.round((row + 0.5) * cellHeight + jitterY - pixelHeight / 2),
+            Math.max(1, Math.round(pixelWidth)),
+            Math.max(1, Math.round(pixelHeight)),
           );
-          context.fill();
         }
       }
 
-      context.lineCap = "butt";
       LINE_FIELDS.filter((field) => field.layer === layer).forEach((field, fieldIndex) => {
         const lineY = field.y + (random(seed, fieldIndex, layerIndex, 12) - 0.5) * 0.014;
         const start = field.start;
         const end = field.end;
         const segmentCount = Math.max(3, Math.round((end - start) * grid.columns));
         const segmentWidth = (end - start) / segmentCount;
-        context.lineWidth = layer === "far" ? 0.55 : 0.85;
         context.globalAlpha = layer === "far" ? 0.28 : 0.62;
         for (let segment = 0; segment < segmentCount; segment += 1) {
           const segmentX = start + segment * segmentWidth;
@@ -281,17 +277,28 @@ export default function HalftoneMountain() {
                 INTERACTION_RADIUS,
               )
             : 0;
-          const gapChance = Math.max(0.01, field.gap - localInfluence * 0.34);
+          const gapChance = Math.max(0.01, field.gap - localInfluence * 0.42);
           if (random(seed, segment, fieldIndex, 18 + layerIndex) < gapChance) continue;
-          const x1 = segmentX * bounds.width;
-          const x2 = (segmentX + segmentWidth * (0.78 + localInfluence * 1.9)) * bounds.width;
+          const x1 = Math.round(segmentX * bounds.width);
+          const pixelRowWidth =
+            segmentWidth * bounds.width * (0.72 + localInfluence * (layer === "far" ? 1.65 : 2.2));
+          const pixelRowHeight = Math.max(
+            1,
+            Math.round(
+              cellHeight *
+                (layer === "far" ? 0.09 : 0.14) *
+                (1 + localInfluence * (layer === "far" ? 0.45 : 0.7)),
+            ),
+          );
           const py = lineY * bounds.height;
           context.globalAlpha =
-            (layer === "far" ? 0.28 : 0.62) + localInfluence * (layer === "far" ? 0.14 : 0.2);
-          context.beginPath();
-          context.moveTo(x1, py);
-          context.lineTo(x2, py);
-          context.stroke();
+            (layer === "far" ? 0.28 : 0.62) + localInfluence * (layer === "far" ? 0.18 : 0.26);
+          context.fillRect(
+            x1,
+            Math.round(py - pixelRowHeight / 2),
+            Math.max(1, Math.round(pixelRowWidth)),
+            pixelRowHeight,
+          );
         }
       });
     });
