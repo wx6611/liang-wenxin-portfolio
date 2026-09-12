@@ -108,7 +108,7 @@ footer{flex-direction:column;gap:10px}
 .home .category-header em{font-size:14px}
 @media(max-width:767px){.home .cover-name{font-size:clamp(64px,18vw,80px)}.home .intro-body{font-size:24px;line-height:1.35}}
  .home .closing{font-size:20px}
-.home .intro-lead{font-size:clamp(36px,4.5vw,72px)}
+.home .intro-lead{font-size:clamp(27px,3.375vw,54px)}
 
 /* Home cover ASCII mountain */
 .home .abstract-slot{
@@ -122,9 +122,10 @@ footer{flex-direction:column;gap:10px}
 }
 .ascii-mountain-shell{
   position:relative;
+  width:100%;
   height:100%;
   max-width:100%;
-  aspect-ratio:960/776;
+  aspect-ratio:auto;
 }
 .ascii-mountain{
   display:block;
@@ -169,14 +170,14 @@ footer{flex-direction:column;gap:10px}
 
 /* Home cover sizing annotations */
 @media(min-width:768px){
-  .home .cover-name{font-size:clamp(60px,calc(13.6vw - 80px),180px)}
+  .home .cover-name{font-size:clamp(40px,calc(9.07vw - 53px),120px)}
   .home .method{font-size:clamp(18px,1.4vw,22px)}
 }
 @media(max-width:767px){
-  .home .cover-name{font-size:clamp(52px,10.2vw,60px)}
+  .home .cover-name{font-size:clamp(35px,6.8vw,40px)}
 }
 @media(max-width:640px){
-  .home .cover-name{font-size:clamp(40px,7.65vw,52px)}
-  .home .intro-lead{font-size:clamp(18px,5.35vw,32px)}
+  .home .cover-name{font-size:clamp(27px,5.1vw,35px)}
+  .home .intro-lead{font-size:clamp(14px,4vw,24px)}
   .home .intro-lead span{white-space:normal}
 }

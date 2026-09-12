@@ -8,8 +8,8 @@ import {
   useState,
 } from "react";
 
-const DESKTOP_GRID = { columns: 84, rows: 68 };
-const MOBILE_GRID = { columns: 64, rows: 52 };
+const DESKTOP_GRID = { columns: 84, rows: 34 };
+const MOBILE_GRID = { columns: 52, rows: 26 };
 const CHARACTERS = ["•", "•", "."] as const;
 const INITIAL_SEED = 6611;
 
@@ -149,13 +149,23 @@ export default function AsciiMountain() {
         const ridge = mountainRidge(x, seed);
         const base = 0.9 + Math.sin(x * 8 + seed * 0.00001) * 0.008;
         const insideMountain = x >= 0.035 && x <= 0.965 && y >= ridge && y <= base;
-        const scanRows = [0.47, 0.56, 0.65, 0.735, 0.82, 0.875];
+        const scanBands = [
+          { row: 0.55, start: 0.1, end: 0.52 },
+          { row: 0.655, start: 0.39, end: 0.88 },
+          { row: 0.76, start: 0.06, end: 0.43 },
+          { row: 0.855, start: 0.29, end: 0.97 },
+        ];
         const scanDistance = Math.min(
-          ...scanRows.map((scan, scanIndex) =>
-            Math.abs(y - scan - (cellRandom(seed, scanIndex, 0, 12) - 0.5) * 0.018),
+          ...scanBands.map((band, scanIndex) =>
+            x >= band.start && x <= band.end
+              ? Math.abs(
+                  y - band.row -
+                    (cellRandom(seed, scanIndex, 0, 12) - 0.5) * 0.024,
+                )
+              : 1,
           ),
         );
-        const scanLine = scanDistance < 0.0085;
+        const scanLine = scanDistance < 0.015;
         const nearMountain = x >= 0.018 && x <= 0.982 && y >= ridge - 0.008 && y <= base + 0.012;
         if (!insideMountain && !(scanLine && nearMountain)) continue;
 
@@ -167,23 +177,32 @@ export default function AsciiMountain() {
             )
           : Infinity;
         const influence = Math.max(0, 1 - distance / 0.13);
-        const regionalTexture =
-          0.5 +
-          Math.sin(x * 21 + y * 13 + seed * 0.000017) * 0.24 +
-          Math.sin(x * 47 - y * 18 + seed * 0.000009) * 0.14;
-        const referenceFactor = 0.62 + Math.min(0.38, referenceTexture * 0.72);
-        const ridgeContour = Math.exp(-depth * 12) * 0.42;
+        const ridgeDistance = y - ridge;
+        const ridgeBand = ridgeDistance >= 0 && ridgeDistance <= 0.045;
+        const denseLeftSlope =
+          gaussian(x, 0.47, 0.14) * gaussian(y, 0.55, 0.22) * 0.42;
+        const denseLowerRight =
+          gaussian(x, 0.66, 0.16) * gaussian(y, 0.79, 0.16) * 0.38;
+        const sparseValley =
+          gaussian(x, 0.37, 0.075) * gaussian(y, 0.64, 0.15) * 0.42;
+        const sparseRight =
+          gaussian(x, 0.8, 0.085) * gaussian(y, 0.63, 0.14) * 0.38;
         const hollow =
-          gaussian(x, 0.43, 0.07) * gaussian(y, 0.63, 0.1) * 0.32 +
-          gaussian(x, 0.7, 0.055) * gaussian(y, 0.72, 0.08) * 0.25;
-        const visibility = Math.max(
-          0.08,
+          gaussian(x, 0.57, 0.045) * gaussian(y, 0.7, 0.065) * 0.3;
+        const smallTexture =
+          Math.sin(x * 19 + y * 11 + seed * 0.000017) * 0.035 +
+          Math.sin(x * 37 - y * 15 + seed * 0.000009) * 0.025;
+        const referenceModulation = (referenceTexture - 0.5) * 0.18;
+        const macroDensity =
+          denseLeftSlope + denseLowerRight - sparseValley - sparseRight - hollow;
+        const baseVisibility = Math.max(
+          0.16,
           Math.min(
             0.9,
-            (0.25 + depth * 0.3 + regionalTexture * 0.31 + ridgeContour - hollow) *
-              referenceFactor,
+            0.43 + depth * 0.1 + macroDensity + smallTexture + referenceModulation,
           ),
         );
+        const visibility = ridgeBand ? Math.max(0.88, baseVisibility) : baseVisibility;
         const recalculatedVisibility = Math.min(0.94, visibility + influence * 0.16);
         if (
           cellRandom(seed, column, row, 0) > recalculatedVisibility ||
@@ -213,7 +232,7 @@ export default function AsciiMountain() {
         }
 
         context.globalAlpha =
-          0.44 + Math.min(0.54, visibility * 0.62 + ridgeContour * 0.22);
+          0.44 + Math.min(0.54, visibility * 0.62 + (ridgeBand ? 0.12 : 0));
         context.fillText(
           character,
           (column + 0.5) * cellWidth,
