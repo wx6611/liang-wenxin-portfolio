@@ -24,6 +24,28 @@ type DensityMask = {
   values: Float32Array;
 };
 
+function gaussian(value: number, center: number, spread: number) {
+  const distance = (value - center) / spread;
+  return Math.exp(-0.5 * distance * distance);
+}
+
+function mountainRidge(x: number, seed: number) {
+  const leftPosition = 0.25 + (cellRandom(seed, 1, 0, 8) - 0.5) * 0.035;
+  const mainPosition = 0.55 + (cellRandom(seed, 2, 0, 8) - 0.5) * 0.04;
+  const rightPosition = 0.78 + (cellRandom(seed, 3, 0, 8) - 0.5) * 0.035;
+  const leftPeak = gaussian(x, leftPosition, 0.115) * 0.38;
+  const mainPeak = gaussian(x, mainPosition, 0.12) * 0.69;
+  const rightPeak = gaussian(x, rightPosition, 0.105) * 0.45;
+  const elevation =
+    0.075 +
+    Math.max(leftPeak, mainPeak, rightPeak) +
+    Math.min(leftPeak, mainPeak, rightPeak) * 0.12;
+  const irregularity =
+    Math.sin(x * 19 + seed * 0.000013) * 0.012 +
+    Math.sin(x * 43 + seed * 0.000021) * 0.006;
+  return Math.max(0.09, Math.min(0.82, 0.9 - elevation - irregularity));
+}
+
 function cellRandom(seed: number, column: number, row: number, channel: number) {
   let value =
     seed ^
@@ -42,6 +64,7 @@ export default function AsciiMountain() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const frameRef = useRef<number | null>(null);
   const recoveryRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isVisibleRef = useRef(true);
   const [mask, setMask] = useState<DensityMask | null>(null);
   const [position, setPosition] = useState<Position | null>(null);
   const [seed, setSeed] = useState(INITIAL_SEED);
@@ -92,6 +115,9 @@ export default function AsciiMountain() {
 
       setMask({ ...grid, values });
     };
+    source.onerror = () => {
+      setMask({ ...grid, values: new Float32Array(grid.columns * grid.rows).fill(0.5) });
+    };
   }, [isMobile]);
 
   useEffect(() => {
@@ -117,39 +143,65 @@ export default function AsciiMountain() {
     for (let row = 0; row < mask.rows; row += 1) {
       for (let column = 0; column < mask.columns; column += 1) {
         const index = row * mask.columns + column;
-        const darkness = mask.values[index];
+        const referenceTexture = mask.values[index];
+        const x = (column + 0.5) / mask.columns;
+        const y = (row + 0.5) / mask.rows;
+        const ridge = mountainRidge(x, seed);
+        const base = 0.9 + Math.sin(x * 8 + seed * 0.00001) * 0.008;
+        const insideMountain = x >= 0.035 && x <= 0.965 && y >= ridge && y <= base;
+        const scanRows = [0.47, 0.56, 0.65, 0.735, 0.82, 0.875];
+        const scanDistance = Math.min(
+          ...scanRows.map((scan, scanIndex) =>
+            Math.abs(y - scan - (cellRandom(seed, scanIndex, 0, 12) - 0.5) * 0.018),
+          ),
+        );
+        const scanLine = scanDistance < 0.0085;
+        const nearMountain = x >= 0.018 && x <= 0.982 && y >= ridge - 0.008 && y <= base + 0.012;
+        if (!insideMountain && !(scanLine && nearMountain)) continue;
+
+        const depth = Math.max(0, Math.min(1, (y - ridge) / Math.max(0.08, base - ridge)));
         const distance = position
           ? Math.hypot(
-              column / mask.columns - position.x,
-              (row / mask.rows - position.y) * 1.25,
+              x - position.x,
+              (y - position.y) * 1.25,
             )
           : Infinity;
         const influence = Math.max(0, 1 - distance / 0.13);
-        const normalizedDensity = Math.max(0, (darkness - 0.02) / 0.45);
-        const visibility = Math.min(1, Math.pow(normalizedDensity, 1.5));
-        const recalculatedVisibility = Math.min(1, visibility + influence * 0.2);
+        const regionalTexture =
+          0.5 +
+          Math.sin(x * 21 + y * 13 + seed * 0.000017) * 0.24 +
+          Math.sin(x * 47 - y * 18 + seed * 0.000009) * 0.14;
+        const referenceFactor = 0.62 + Math.min(0.38, referenceTexture * 0.72);
+        const ridgeContour = Math.exp(-depth * 12) * 0.42;
+        const hollow =
+          gaussian(x, 0.43, 0.07) * gaussian(y, 0.63, 0.1) * 0.32 +
+          gaussian(x, 0.7, 0.055) * gaussian(y, 0.72, 0.08) * 0.25;
+        const visibility = Math.max(
+          0.08,
+          Math.min(
+            0.9,
+            (0.25 + depth * 0.3 + regionalTexture * 0.31 + ridgeContour - hollow) *
+              referenceFactor,
+          ),
+        );
+        const recalculatedVisibility = Math.min(0.94, visibility + influence * 0.16);
         if (
           cellRandom(seed, column, row, 0) > recalculatedVisibility ||
-          recalculatedVisibility < 0.07
+          (!insideMountain && cellRandom(seed, column, row, 11) > 0.48)
         ) {
           continue;
         }
 
-        const left = mask.values[index - 1] ?? 0;
-        const right = mask.values[index + 1] ?? 0;
-        const above = mask.values[index - mask.columns] ?? 0;
-        const below = mask.values[index + mask.columns] ?? 0;
-        const horizontalWeight = left + right - above - below;
         let character: string;
 
         if (
-          horizontalWeight > 0.035 &&
-          cellRandom(seed, column, row, 1) < 0.74 + influence * 0.15
+          scanLine &&
+          cellRandom(seed, column, row, 1) < 0.82 + influence * 0.08
         ) {
           character = cellRandom(seed, column, row, 2) > 0.45 ? "—" : "_";
         } else if (
-          darkness < 0.2 &&
-          cellRandom(seed, column, row, 3) > 0.58
+          (depth < 0.12 || visibility < 0.43) &&
+          cellRandom(seed, column, row, 3) > 0.36
         ) {
           character = ".";
         } else {
@@ -161,7 +213,7 @@ export default function AsciiMountain() {
         }
 
         context.globalAlpha =
-          0.22 + Math.min(0.74, Math.pow(darkness, 0.62) * 1.08);
+          0.44 + Math.min(0.54, visibility * 0.62 + ridgeContour * 0.22);
         context.fillText(
           character,
           (column + 0.5) * cellWidth,
@@ -183,6 +235,20 @@ export default function AsciiMountain() {
   }, []);
 
   useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || !("IntersectionObserver" in window)) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        isVisibleRef.current = entry.isIntersecting;
+        if (!entry.isIntersecting) setPosition(null);
+      },
+      { threshold: 0.05 },
+    );
+    observer.observe(canvas);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
     return () => {
       if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
       if (recoveryRef.current) clearTimeout(recoveryRef.current);
@@ -196,7 +262,7 @@ export default function AsciiMountain() {
 
   const updatePosition = useCallback(
     (event: PointerEvent<HTMLCanvasElement>) => {
-      if (reducedMotion) return;
+      if (reducedMotion || !isVisibleRef.current) return;
       const bounds = event.currentTarget.getBoundingClientRect();
       const nextPosition = {
         x: (event.clientX - bounds.left) / bounds.width,
