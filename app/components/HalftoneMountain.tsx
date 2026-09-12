@@ -70,7 +70,7 @@ const LAYER_STYLES: Record<Layer, LayerStyle> = {
     peakMin: 0.2,
     peakMax: 0.27,
     foot: 0.8,
-    lineCount: 3,
+    lineCount: 5,
     squareRowCount: 1,
     lineGap: 0.4,
     xStart: 0.03,
@@ -88,7 +88,7 @@ const LAYER_STYLES: Record<Layer, LayerStyle> = {
     peakMin: 0.27,
     peakMax: 0.36,
     foot: 0.86,
-    lineCount: 4,
+    lineCount: 7,
     squareRowCount: 1,
     lineGap: 0.32,
     xStart: 0.05,
@@ -106,7 +106,7 @@ const LAYER_STYLES: Record<Layer, LayerStyle> = {
     peakMin: 0.33,
     peakMax: 0.43,
     foot: 0.91,
-    lineCount: 5,
+    lineCount: 8,
     squareRowCount: 2,
     lineGap: 0.25,
     xStart: 0.07,
@@ -124,7 +124,7 @@ const LAYER_STYLES: Record<Layer, LayerStyle> = {
     peakMin: 0.34,
     peakMax: 0.44,
     foot: 0.97,
-    lineCount: 6,
+    lineCount: 10,
     squareRowCount: 2,
     lineGap: 0.18,
     xStart: 0.06,
@@ -309,11 +309,11 @@ function generateLayer(
       style.xEnd - 0.18,
     );
     const lengthAnchor =
-      (layer === "front" ? 0.29 : 0.245) + (lineIndex % 3) * 0.035;
+      (layer === "front" ? 0.194 : 0.164) + (lineIndex % 3) * 0.023;
     const length = clamp(
-      lengthAnchor + sample(seed, layerIndex, channel + 1, -0.035, 0.035),
-      0.17,
-      layer === "front" ? 0.42 : 0.36,
+      lengthAnchor + sample(seed, layerIndex, channel + 1, -0.024, 0.024),
+      0.11,
+      layer === "front" ? 0.28 : 0.24,
     );
     const lineYMin = Math.max(0.34, style.fadeStart - 0.2);
     const lineYAnchor = lerp(lineYMin, style.fadeEnd, lineProgress);
