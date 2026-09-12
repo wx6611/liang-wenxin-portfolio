@@ -317,7 +317,7 @@ function generateLayer(
     );
     const fullLineYMin = Math.max(0.34, style.fadeStart - 0.2);
     const fullLineYMax = style.fadeEnd;
-    const lineYInset = (fullLineYMax - fullLineYMin) / 6;
+    const lineYInset = (fullLineYMax - fullLineYMin) / 3;
     const lineYMin = fullLineYMin + lineYInset;
     const lineYMax = fullLineYMax - lineYInset;
     const lineYAnchor = lerp(lineYMin, lineYMax, lineProgress);
