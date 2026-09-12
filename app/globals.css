@@ -112,8 +112,8 @@ footer{flex-direction:column;gap:10px}
 
 /* Home cover halftone mountain */
 .home .abstract-slot{
-  width:min(60vw,900px);
-  height:clamp(300px,40vh,380px);
+  width:min(72vw,1120px);
+  height:clamp(360px,46vh,460px);
   aspect-ratio:auto;
   border:0;
   display:flex;
@@ -141,7 +141,7 @@ footer{flex-direction:column;gap:10px}
 }
 .halftone-mountain.is-recalculating{opacity:.84}
 @media(max-width:767px){
-  .home .abstract-slot{width:min(92vw,560px);height:clamp(260px,38vh,320px)}
+  .home .abstract-slot{width:min(94vw,620px);height:clamp(280px,40vh,360px)}
 }
 @media(prefers-reduced-motion:reduce){
   .halftone-mountain{transition:none}

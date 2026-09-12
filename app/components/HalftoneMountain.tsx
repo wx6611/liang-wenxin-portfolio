@@ -5,61 +5,130 @@ import { PointerEvent, useCallback, useEffect, useRef, useState } from "react";
 const DESKTOP_GRID = { columns: 82, rows: 36 };
 const MOBILE_GRID = { columns: 56, rows: 28 };
 const INITIAL_SEED = 6611;
+const PIXEL_SEED = 9437;
 const INTERACTION_RADIUS = 0.245;
+const MORPH_DURATION = 760;
+
+const LAYER_ORDER = ["far", "midFar", "mid", "front"] as const;
 
 type Position = { x: number; y: number };
-type Layer = "far" | "front";
+type Layer = (typeof LAYER_ORDER)[number];
 type RidgePoint = { x: number; y: number };
+type DensityIsland = { x: number; y: number; spreadX: number; spreadY: number; weight: number };
 
 type LineField = {
-  layer: Layer;
   y: number;
   start: number;
   end: number;
   gap: number;
 };
 
-const LINE_FIELDS: LineField[] = [
-  { layer: "far", y: 0.4, start: 0.48, end: 0.72, gap: 0.25 },
-  { layer: "far", y: 0.48, start: 0.18, end: 0.51, gap: 0.34 },
-  { layer: "far", y: 0.55, start: 0.08, end: 0.35, gap: 0.18 },
-  { layer: "far", y: 0.6, start: 0.6, end: 0.94, gap: 0.29 },
-  { layer: "front", y: 0.54, start: 0.26, end: 0.58, gap: 0.16 },
-  { layer: "front", y: 0.62, start: 0.07, end: 0.39, gap: 0.27 },
-  { layer: "front", y: 0.68, start: 0.5, end: 0.9, gap: 0.12 },
-  { layer: "front", y: 0.74, start: 0.03, end: 0.29, gap: 0.21 },
-  { layer: "front", y: 0.82, start: 0.15, end: 0.58, gap: 0.1 },
-  { layer: "front", y: 0.88, start: 0.38, end: 0.92, gap: 0.19 },
-];
-
-const RIDGE_POINTS: Record<Layer, RidgePoint[]> = {
-  far: [
-    { x: 0, y: 0.74 },
-    { x: 0.05, y: 0.69 },
-    { x: 0.16, y: 0.54 },
-    { x: 0.27, y: 0.35 },
-    { x: 0.42, y: 0.42 },
-    { x: 0.58, y: 0.22 },
-    { x: 0.64, y: 0.29 },
-    { x: 0.71, y: 0.46 },
-    { x: 0.82, y: 0.38 },
-    { x: 0.95, y: 0.65 },
-    { x: 1, y: 0.72 },
-  ],
-  front: [
-    { x: 0, y: 0.88 },
-    { x: 0.07, y: 0.8 },
-    { x: 0.18, y: 0.56 },
-    { x: 0.31, y: 0.6 },
-    { x: 0.46, y: 0.38 },
-    { x: 0.53, y: 0.47 },
-    { x: 0.6, y: 0.57 },
-    { x: 0.72, y: 0.48 },
-    { x: 0.82, y: 0.61 },
-    { x: 0.92, y: 0.75 },
-    { x: 1, y: 0.86 },
-  ],
+type LayerComposition = {
+  ridge: RidgePoint[];
+  dense: DensityIsland[];
+  hollow: DensityIsland[];
+  lines: LineField[];
+  foot: number;
+  phase: number;
 };
+
+type MountainComposition = Record<Layer, LayerComposition>;
+
+type LayerStyle = {
+  densityScale: number;
+  pixelScale: number;
+  opacityBase: number;
+  opacityRange: number;
+  activationAlpha: number;
+  densityBoost: number;
+  fadeStart: number;
+  fadeEnd: number;
+  peakMin: number;
+  peakMax: number;
+  foot: number;
+  lineCount: number;
+  lineGap: number;
+  xStart: number;
+  xEnd: number;
+};
+
+const LAYER_STYLES: Record<Layer, LayerStyle> = {
+  far: {
+    densityScale: 0.5,
+    pixelScale: 0.65,
+    opacityBase: 0.18,
+    opacityRange: 0.12,
+    activationAlpha: 0.14,
+    densityBoost: 0.3,
+    fadeStart: 0.6,
+    fadeEnd: 0.78,
+    peakMin: 0.2,
+    peakMax: 0.27,
+    foot: 0.8,
+    lineCount: 3,
+    lineGap: 0.4,
+    xStart: 0.03,
+    xEnd: 0.97,
+  },
+  midFar: {
+    densityScale: 0.62,
+    pixelScale: 0.78,
+    opacityBase: 0.28,
+    opacityRange: 0.14,
+    activationAlpha: 0.17,
+    densityBoost: 0.35,
+    fadeStart: 0.66,
+    fadeEnd: 0.84,
+    peakMin: 0.27,
+    peakMax: 0.36,
+    foot: 0.86,
+    lineCount: 4,
+    lineGap: 0.32,
+    xStart: 0.05,
+    xEnd: 0.95,
+  },
+  mid: {
+    densityScale: 0.75,
+    pixelScale: 0.9,
+    opacityBase: 0.42,
+    opacityRange: 0.18,
+    activationAlpha: 0.2,
+    densityBoost: 0.4,
+    fadeStart: 0.7,
+    fadeEnd: 0.88,
+    peakMin: 0.33,
+    peakMax: 0.43,
+    foot: 0.91,
+    lineCount: 5,
+    lineGap: 0.25,
+    xStart: 0.07,
+    xEnd: 0.93,
+  },
+  front: {
+    densityScale: 0.9,
+    pixelScale: 1,
+    opacityBase: 0.58,
+    opacityRange: 0.22,
+    activationAlpha: 0.26,
+    densityBoost: 0.46,
+    fadeStart: 0.76,
+    fadeEnd: 0.94,
+    peakMin: 0.4,
+    peakMax: 0.5,
+    foot: 0.96,
+    lineCount: 6,
+    lineGap: 0.18,
+    xStart: 0.09,
+    xEnd: 0.91,
+  },
+};
+
+const ARCHETYPES: Array<Record<Layer, number>> = [
+  { far: 0.66, midFar: 0.36, mid: 0.57, front: 0.43 },
+  { far: 0.34, midFar: 0.69, mid: 0.48, front: 0.62 },
+  { far: 0.55, midFar: 0.28, mid: 0.71, front: 0.42 },
+  { far: 0.72, midFar: 0.44, mid: 0.27, front: 0.59 },
+];
 
 function random(seed: number, column: number, row: number, channel: number) {
   let value =
@@ -69,6 +138,18 @@ function random(seed: number, column: number, row: number, channel: number) {
     Math.imul(channel + 1, -2048144789);
   value = Math.imul(value ^ (value >>> 13), 1274126177);
   return ((value ^ (value >>> 16)) >>> 0) / 4294967296;
+}
+
+function sample(seed: number, layerIndex: number, channel: number, min: number, max: number) {
+  return min + random(seed, layerIndex, channel, 73) * (max - min);
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function lerp(from: number, to: number, progress: number) {
+  return from + (to - from) * progress;
 }
 
 function gaussian(value: number, center: number, spread: number) {
@@ -81,7 +162,7 @@ function nextSeed(seed: number) {
 }
 
 function smoothStep(edge0: number, edge1: number, value: number) {
-  const progress = Math.max(0, Math.min(1, (value - edge0) / (edge1 - edge0)));
+  const progress = clamp((value - edge0) / (edge1 - edge0), 0, 1);
   return progress * progress * (3 - 2 * progress);
 }
 
@@ -89,84 +170,256 @@ function smoothFalloff(distance: number, radius: number) {
   return 1 - smoothStep(0, radius, distance);
 }
 
-function ridge(layer: Layer, x: number, seed: number) {
-  const points = RIDGE_POINTS[layer];
-  const layerIndex = layer === "far" ? 0 : 1;
-  const positionShift = (random(seed, layerIndex, 0, 31) - 0.5) * 0.024;
-  const profileX = Math.max(0, Math.min(1, x + positionShift));
-  let segment = 0;
-  while (segment < points.length - 2 && profileX > points[segment + 1].x) {
-    segment += 1;
-  }
-  const from = points[segment];
-  const to = points[segment + 1];
-  const progress = smoothStep(from.x, to.x, profileX);
-  const fromOffset = (random(seed, segment, layerIndex, 37) - 0.5) * 0.024;
-  const toOffset = (random(seed, segment + 1, layerIndex, 37) - 0.5) * 0.024;
-  const profile = from.y + fromOffset + (to.y + toOffset - from.y - fromOffset) * progress;
-  const phase = seed * 0.000013;
-  const irregularity =
-    Math.sin(x * (layer === "far" ? 17 : 23) + phase) * 0.008 +
-    Math.sin(x * (layer === "far" ? 41 : 53) - phase * 0.7) * 0.004;
-  return Math.max(0.09, Math.min(0.88, profile + irregularity));
+function easeOutCubic(progress: number) {
+  return 1 - Math.pow(1 - progress, 3);
 }
 
-function layerFoot(layer: Layer, x: number, seed: number) {
-  const foot = layer === "far" ? 0.87 : 0.95;
+function generateLayer(
+  layer: Layer,
+  layerIndex: number,
+  seed: number,
+  mainPeakBase: number,
+): LayerComposition {
+  const style = LAYER_STYLES[layer];
+  const foot = style.foot + sample(seed, layerIndex, 1, -0.014, 0.014);
+  const mainX = clamp(
+    mainPeakBase + sample(seed, layerIndex, 2, -0.085, 0.085),
+    0.22,
+    0.78,
+  );
+  const mainY = sample(seed, layerIndex, 3, style.peakMin, style.peakMax);
+  const leftX = clamp(
+    mainX - sample(seed, layerIndex, 4, 0.19, 0.31),
+    style.xStart + 0.055,
+    mainX - 0.12,
+  );
+  const rightX = clamp(
+    mainX + sample(seed, layerIndex, 5, 0.18, 0.3),
+    mainX + 0.12,
+    style.xEnd - 0.055,
+  );
+  const leftY = clamp(
+    mainY + sample(seed, layerIndex, 6, 0.13, 0.23),
+    mainY + 0.1,
+    foot - 0.13,
+  );
+  const rightY = clamp(
+    mainY + sample(seed, layerIndex, 7, 0.12, 0.23),
+    mainY + 0.09,
+    foot - 0.13,
+  );
+  const leftValleyX = lerp(leftX, mainX, sample(seed, layerIndex, 8, 0.43, 0.61));
+  const rightValleyX = lerp(mainX, rightX, sample(seed, layerIndex, 9, 0.4, 0.6));
+  const leftValleyY = clamp(
+    Math.max(leftY, mainY) + sample(seed, layerIndex, 10, 0.055, 0.13),
+    mainY + 0.1,
+    foot - 0.07,
+  );
+  const rightValleyY = clamp(
+    Math.max(rightY, mainY) + sample(seed, layerIndex, 11, 0.055, 0.135),
+    mainY + 0.1,
+    foot - 0.07,
+  );
+  const phase = sample(seed, layerIndex, 12, 0, Math.PI * 2);
+
+  const ridge: RidgePoint[] = [
+    { x: style.xStart, y: foot - sample(seed, layerIndex, 13, 0.055, 0.12) },
+    { x: leftX, y: leftY },
+    { x: leftValleyX, y: leftValleyY },
+    {
+      x: lerp(leftValleyX, mainX, 0.72),
+      y: mainY + sample(seed, layerIndex, 14, 0.02, 0.055),
+    },
+    { x: mainX, y: mainY },
+    {
+      x: lerp(mainX, rightValleyX, 0.3),
+      y: mainY + sample(seed, layerIndex, 15, 0.025, 0.06),
+    },
+    { x: rightValleyX, y: rightValleyY },
+    { x: rightX, y: rightY },
+    { x: style.xEnd, y: foot - sample(seed, layerIndex, 16, 0.05, 0.115) },
+  ];
+
+  const dense: DensityIsland[] = [
+    {
+      x: leftX + sample(seed, layerIndex, 17, -0.025, 0.025),
+      y: leftY + sample(seed, layerIndex, 18, 0.065, 0.14),
+      spreadX: sample(seed, layerIndex, 19, 0.075, 0.13),
+      spreadY: sample(seed, layerIndex, 20, 0.08, 0.14),
+      weight: sample(seed, layerIndex, 21, 0.72, 1.02),
+    },
+    {
+      x: mainX + sample(seed, layerIndex, 22, -0.025, 0.025),
+      y: mainY + sample(seed, layerIndex, 23, 0.07, 0.145),
+      spreadX: sample(seed, layerIndex, 24, 0.075, 0.125),
+      spreadY: sample(seed, layerIndex, 25, 0.09, 0.15),
+      weight: sample(seed, layerIndex, 26, 0.88, 1.18),
+    },
+    {
+      x: rightX + sample(seed, layerIndex, 27, -0.025, 0.025),
+      y: rightY + sample(seed, layerIndex, 28, 0.065, 0.14),
+      spreadX: sample(seed, layerIndex, 29, 0.08, 0.145),
+      spreadY: sample(seed, layerIndex, 30, 0.08, 0.145),
+      weight: sample(seed, layerIndex, 31, 0.7, 1.06),
+    },
+  ];
+
+  const hollow: DensityIsland[] = [
+    {
+      x: leftValleyX,
+      y: leftValleyY + sample(seed, layerIndex, 32, 0.035, 0.09),
+      spreadX: sample(seed, layerIndex, 33, 0.06, 0.1),
+      spreadY: sample(seed, layerIndex, 34, 0.075, 0.13),
+      weight: sample(seed, layerIndex, 35, 0.76, 1.08),
+    },
+    {
+      x: rightValleyX,
+      y: rightValleyY + sample(seed, layerIndex, 36, 0.035, 0.09),
+      spreadX: sample(seed, layerIndex, 37, 0.06, 0.1),
+      spreadY: sample(seed, layerIndex, 38, 0.075, 0.13),
+      weight: sample(seed, layerIndex, 39, 0.78, 1.12),
+    },
+  ];
+
+  const lines = Array.from({ length: style.lineCount }, (_, lineIndex): LineField => {
+    const channel = 45 + lineIndex * 4;
+    const start = sample(seed, layerIndex, channel, style.xStart - 0.02, 0.64);
+    const length = sample(seed, layerIndex, channel + 1, 0.16, layer === "front" ? 0.46 : 0.39);
+    return {
+      y: sample(
+        seed,
+        layerIndex,
+        channel + 2,
+        Math.max(0.34, style.fadeStart - 0.2),
+        style.fadeEnd + 0.035,
+      ),
+      start,
+      end: Math.min(0.98, start + length),
+      gap: clamp(
+        style.lineGap + sample(seed, layerIndex, channel + 3, -0.08, 0.08),
+        0.08,
+        0.48,
+      ),
+    };
+  });
+
+  return { ridge, dense, hollow, lines, foot, phase };
+}
+
+function generateMountain(seed: number): MountainComposition {
+  const archetype = ARCHETYPES[seed % ARCHETYPES.length];
+  return Object.fromEntries(
+    LAYER_ORDER.map((layer, layerIndex) => [
+      layer,
+      generateLayer(layer, layerIndex, seed, archetype[layer]),
+    ]),
+  ) as MountainComposition;
+}
+
+function interpolateIsland(from: DensityIsland, to: DensityIsland, progress: number) {
+  return {
+    x: lerp(from.x, to.x, progress),
+    y: lerp(from.y, to.y, progress),
+    spreadX: lerp(from.spreadX, to.spreadX, progress),
+    spreadY: lerp(from.spreadY, to.spreadY, progress),
+    weight: lerp(from.weight, to.weight, progress),
+  };
+}
+
+function interpolateMountain(
+  from: MountainComposition,
+  to: MountainComposition,
+  progress: number,
+): MountainComposition {
+  return Object.fromEntries(
+    LAYER_ORDER.map((layer) => {
+      const fromLayer = from[layer];
+      const toLayer = to[layer];
+      return [
+        layer,
+        {
+          ridge: fromLayer.ridge.map((point, index) => ({
+            x: lerp(point.x, toLayer.ridge[index].x, progress),
+            y: lerp(point.y, toLayer.ridge[index].y, progress),
+          })),
+          dense: fromLayer.dense.map((island, index) =>
+            interpolateIsland(island, toLayer.dense[index], progress),
+          ),
+          hollow: fromLayer.hollow.map((island, index) =>
+            interpolateIsland(island, toLayer.hollow[index], progress),
+          ),
+          lines: fromLayer.lines.map((line, index) => ({
+            y: lerp(line.y, toLayer.lines[index].y, progress),
+            start: lerp(line.start, toLayer.lines[index].start, progress),
+            end: lerp(line.end, toLayer.lines[index].end, progress),
+            gap: lerp(line.gap, toLayer.lines[index].gap, progress),
+          })),
+          foot: lerp(fromLayer.foot, toLayer.foot, progress),
+          phase: lerp(fromLayer.phase, toLayer.phase, progress),
+        } satisfies LayerComposition,
+      ];
+    }),
+  ) as MountainComposition;
+}
+
+function ridge(layer: Layer, composition: LayerComposition, x: number) {
+  const points = composition.ridge;
+  let segment = 0;
+  while (segment < points.length - 2 && x > points[segment + 1].x) segment += 1;
+  const from = points[segment];
+  const to = points[segment + 1];
+  const progress = smoothStep(from.x, to.x, x);
+  const layerIndex = LAYER_ORDER.indexOf(layer);
+  const profile = lerp(from.y, to.y, progress);
+  const irregularity =
+    Math.sin(x * (17 + layerIndex * 5) + composition.phase) * 0.006 +
+    Math.sin(x * (41 + layerIndex * 6) - composition.phase * 0.7) * 0.003;
+  return clamp(profile + irregularity, 0.12, 0.9);
+}
+
+function layerFoot(layer: Layer, composition: LayerComposition, x: number) {
+  const layerIndex = LAYER_ORDER.indexOf(layer);
   return (
-    foot +
-    Math.sin(x * (layer === "far" ? 9 : 11) + seed * 0.000009) * 0.018 +
-    Math.sin(x * (layer === "far" ? 27 : 31) - seed * 0.000006) * 0.008
+    composition.foot +
+    Math.sin(x * (9 + layerIndex * 1.7) + composition.phase) * 0.012 +
+    Math.sin(x * (25 + layerIndex * 2.3) - composition.phase) * 0.006
   );
 }
 
-function density(layer: Layer, x: number, y: number, seed: number) {
-  const warpX = x + Math.sin(y * 16 + seed * 0.000011) * 0.022;
-  const warpY = y + Math.sin(x * 20 + seed * 0.000017) * 0.018;
-  const island = (cx: number, cy: number, sx: number, sy: number) =>
-    gaussian(warpX, cx, sx) * gaussian(warpY, cy, sy);
-
-  if (layer === "far") {
-    const dense =
-      island(0.27, 0.44, 0.13, 0.12) * 0.58 +
-      island(0.58, 0.36, 0.11, 0.13) * 0.72 +
-      island(0.82, 0.49, 0.12, 0.12) * 0.54;
-    const blank =
-      island(0.42, 0.49, 0.085, 0.1) * 0.84 +
-      island(0.71, 0.52, 0.075, 0.095) * 0.76;
-    const score = 0.16 + dense - blank + Math.sin(x * 11 + y * 8) * 0.05;
-    if (score > 0.58) return 0.76;
-    if (score > 0.3) return 0.42;
-    if (score > 0.14) return 0.18;
-    return 0.05;
-  }
-
-  const dense =
-    island(0.18, 0.66, 0.12, 0.13) * 1.02 +
-    island(0.45, 0.5, 0.105, 0.14) * 1.16 +
-    island(0.68, 0.74, 0.15, 0.105) * 1.1 +
-    island(0.76, 0.55, 0.08, 0.11) * 0.62;
-  const blank =
-    island(0.31, 0.67, 0.075, 0.11) * 1.0 +
-    island(0.6, 0.6, 0.085, 0.12) * 1.12 +
-    island(0.77, 0.8, 0.065, 0.08) * 0.9;
-  const score = 0.17 + dense - blank + Math.sin(x * 13 - y * 9) * 0.055;
-  if (score > 0.72) return 0.96;
-  if (score > 0.38) return 0.62;
-  if (score > 0.16) return 0.23;
-  return 0.035;
+function density(layer: Layer, composition: LayerComposition, x: number, y: number) {
+  const layerIndex = LAYER_ORDER.indexOf(layer);
+  const warpX = x + Math.sin(y * 16 + composition.phase) * 0.018;
+  const warpY = y + Math.sin(x * 20 - composition.phase * 0.8) * 0.015;
+  const islandValue = (island: DensityIsland) =>
+    gaussian(warpX, island.x, island.spreadX) *
+    gaussian(warpY, island.y, island.spreadY) *
+    island.weight;
+  const dense = composition.dense.reduce((sum, island) => sum + islandValue(island), 0);
+  const hollow = composition.hollow.reduce((sum, island) => sum + islandValue(island), 0);
+  const score =
+    0.1 +
+    dense -
+    hollow +
+    Math.sin(x * (11 + layerIndex * 2) + y * 9 + composition.phase) * 0.045;
+  const rawDensity = score > 0.68 ? 0.98 : score > 0.38 ? 0.74 : score > 0.16 ? 0.36 : 0.07;
+  return rawDensity * LAYER_STYLES[layer].densityScale;
 }
+
+const INITIAL_COMPOSITION = generateMountain(INITIAL_SEED);
 
 export default function HalftoneMountain() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const frameRef = useRef<number | null>(null);
+  const pointerFrameRef = useRef<number | null>(null);
+  const morphFrameRef = useRef<number | null>(null);
   const recoveryRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isVisibleRef = useRef(true);
-  const [position, setPosition] = useState<Position | null>(null);
-  const [seed, setSeed] = useState(INITIAL_SEED);
+  const positionRef = useRef<Position | null>(null);
+  const seedRef = useRef(INITIAL_SEED);
+  const currentCompositionRef = useRef(INITIAL_COMPOSITION);
+  const previousCompositionRef = useRef(INITIAL_COMPOSITION);
+  const morphProgressRef = useRef(1);
   const [reducedMotion, setReducedMotion] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const [renderVersion, setRenderVersion] = useState(0);
 
   useEffect(() => {
     const motionMedia = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -183,7 +436,7 @@ export default function HalftoneMountain() {
     };
   }, []);
 
-  useEffect(() => {
+  const draw = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const bounds = canvas.getBoundingClientRect();
@@ -198,58 +451,71 @@ export default function HalftoneMountain() {
     context.clearRect(0, 0, bounds.width, bounds.height);
     context.fillStyle = "#111";
 
+    const composition = interpolateMountain(
+      previousCompositionRef.current,
+      currentCompositionRef.current,
+      morphProgressRef.current,
+    );
     const cellWidth = bounds.width / grid.columns;
     const cellHeight = bounds.height / grid.rows;
 
-    (["far", "front"] as Layer[]).forEach((layer, layerIndex) => {
+    LAYER_ORDER.forEach((layer, layerIndex) => {
+      const layerComposition = composition[layer];
+      const style = LAYER_STYLES[layer];
+      const nearerLayer = LAYER_ORDER[layerIndex + 1];
+
       for (let row = 0; row < grid.rows; row += 1) {
         for (let column = 0; column < grid.columns; column += 1) {
           const x = (column + 0.5) / grid.columns;
           const y = (row + 0.5) / grid.rows;
-          const mountainRidge = ridge(layer, x, seed);
-          const foot = layerFoot(layer, x, seed);
-          if (x < 0.05 || x > 0.95 || y < mountainRidge || y > foot) continue;
+          const mountainRidge = ridge(layer, layerComposition, x);
+          const foot = layerFoot(layer, layerComposition, x);
+          if (x < style.xStart || x > style.xEnd || y < mountainRidge || y > foot) continue;
 
-          if (layer === "far" && x >= 0.35 && x <= 0.78) {
-            const foregroundRidge = ridge("front", x, seed);
-            if (y >= foregroundRidge) continue;
+          if (nearerLayer) {
+            const nearerStyle = LAYER_STYLES[nearerLayer];
+            if (x >= nearerStyle.xStart && x <= nearerStyle.xEnd) {
+              const nearerRidge = ridge(nearerLayer, composition[nearerLayer], x);
+              if (y >= nearerRidge) continue;
+            }
           }
 
           const ridgeDistance = y - mountainRidge;
-          const ridgeBand = ridgeDistance >= 0 && ridgeDistance < 0.038;
-          const baseDensity = density(layer, x, y, seed);
           const terrainDepth = ridgeDistance / Math.max(0.08, foot - mountainRidge);
-          const depthFade = 1 - smoothStep(layer === "far" ? 0.62 : 0.72, 1, terrainDepth);
-          const verticalFade =
-            1 - smoothStep(layer === "far" ? 0.68 : 0.73, layer === "far" ? 0.88 : 0.94, y);
+          const depthFade = 1 - smoothStep(0.64, 1, terrainDepth);
+          const verticalFade = 1 - smoothStep(style.fadeStart, style.fadeEnd, y);
           const footFade = depthFade * verticalFade;
-          const distance = position
-            ? Math.hypot(x - position.x, (y - position.y) * 1.3)
+          const baseDensity = density(layer, layerComposition, x, y);
+          const distance = positionRef.current
+            ? Math.hypot(x - positionRef.current.x, (y - positionRef.current.y) * 1.3)
             : Infinity;
           const influence = smoothFalloff(distance, INTERACTION_RADIUS);
-          const silhouetteChance = Math.max(ridgeBand ? 0.86 : 0, baseDensity);
-          const densityBoost = layer === "far" ? 0.34 : 0.44;
+          const ridgeBand = ridgeDistance >= 0 && ridgeDistance < 0.04;
+          const ridgeChance = 0.48 + style.densityScale * 0.38;
+          const silhouetteChance = Math.max(ridgeBand ? ridgeChance : 0, baseDensity);
           const visibleChance = Math.min(
             0.98,
-            silhouetteChance * (0.12 + footFade * 0.88) + influence * densityBoost,
+            silhouetteChance * (0.12 + footFade * 0.88) + influence * style.densityBoost,
           );
-          if (random(seed + layerIndex * 97, column, row, 0) > visibleChance) continue;
+          if (random(PIXEL_SEED + layerIndex * 97, column, row, 0) > visibleChance) continue;
 
-          const jitterX = (random(seed, column, row, 1 + layerIndex) - 0.5) * cellWidth * 0.07;
-          const jitterY = (random(seed, column, row, 3 + layerIndex) - 0.5) * cellHeight * 0.05;
-          const sizeNoise = 0.92 + random(seed, column, row, 5 + layerIndex) * 0.16;
-          const pixelScale =
-            layer === "far" ? 0.16 + baseDensity * 0.4 : 0.2 + baseDensity * 0.58;
-          const footScale = 0.44 + footFade * 0.56;
-          const sizeBoost = layer === "far" ? 0.56 : 0.72;
+          const jitterX =
+            (random(PIXEL_SEED, column, row, 1 + layerIndex) - 0.5) * cellWidth * 0.06;
+          const jitterY =
+            (random(PIXEL_SEED, column, row, 5 + layerIndex) - 0.5) * cellHeight * 0.045;
+          const sizeNoise = 0.93 + random(PIXEL_SEED, column, row, 9 + layerIndex) * 0.14;
+          const pixelScale = (0.2 + baseDensity * 0.72) * style.pixelScale;
+          const footScale = 0.43 + footFade * 0.57;
+          const sizeBoost = 0.48 + style.pixelScale * 0.24;
           const activatedScale = pixelScale * sizeNoise * footScale * (1 + influence * sizeBoost);
-          const pixelWidth = cellWidth * Math.min(layer === "far" ? 0.76 : 0.86, activatedScale);
-          const pixelHeight = cellHeight * Math.min(layer === "far" ? 0.7 : 0.82, activatedScale);
-          const fadeAlpha = 0.35 + footFade * 0.65;
-          context.globalAlpha =
-            layer === "far"
-              ? (0.2 + baseDensity * 0.26) * fadeAlpha + influence * 0.16
-              : (0.42 + baseDensity * 0.48) * fadeAlpha + influence * 0.24;
+          const pixelWidth = cellWidth * Math.min(0.86, activatedScale);
+          const pixelHeight = cellHeight * Math.min(0.82, activatedScale);
+          const fadeAlpha = 0.34 + footFade * 0.66;
+          context.globalAlpha = Math.min(
+            1,
+            (style.opacityBase + baseDensity * style.opacityRange) * fadeAlpha +
+              influence * style.activationAlpha,
+          );
           context.fillRect(
             Math.round((column + 0.5) * cellWidth + jitterX - pixelWidth / 2),
             Math.round((row + 0.5) * cellHeight + jitterY - pixelHeight / 2),
@@ -259,43 +525,42 @@ export default function HalftoneMountain() {
         }
       }
 
-      LINE_FIELDS.filter((field) => field.layer === layer).forEach((field, fieldIndex) => {
-        const lineY = field.y + (random(seed, fieldIndex, layerIndex, 12) - 0.5) * 0.014;
-        const start = field.start;
-        const end = field.end;
-        const segmentCount = Math.max(3, Math.round((end - start) * grid.columns));
-        const segmentWidth = (end - start) / segmentCount;
-        context.globalAlpha = layer === "far" ? 0.28 : 0.62;
+      layerComposition.lines.forEach((field, fieldIndex) => {
+        const segmentCount = Math.max(3, Math.round((field.end - field.start) * grid.columns));
+        const segmentWidth = (field.end - field.start) / segmentCount;
         for (let segment = 0; segment < segmentCount; segment += 1) {
-          const segmentX = start + segment * segmentWidth;
-          const mountainRidge = ridge(layer, segmentX, seed);
-          const foot = layerFoot(layer, segmentX, seed);
-          if (lineY < mountainRidge - 0.014 || lineY > foot + 0.014) continue;
-          const localInfluence = position
+          const segmentX = field.start + segment * segmentWidth;
+          const mountainRidge = ridge(layer, layerComposition, segmentX);
+          const foot = layerFoot(layer, layerComposition, segmentX);
+          if (field.y < mountainRidge - 0.014 || field.y > foot + 0.014) continue;
+          const localInfluence = positionRef.current
             ? smoothFalloff(
-                Math.hypot(segmentX - position.x, (lineY - position.y) * 1.3),
+                Math.hypot(
+                  segmentX - positionRef.current.x,
+                  (field.y - positionRef.current.y) * 1.3,
+                ),
                 INTERACTION_RADIUS,
               )
             : 0;
           const gapChance = Math.max(0.01, field.gap - localInfluence * 0.42);
-          if (random(seed, segment, fieldIndex, 18 + layerIndex) < gapChance) continue;
-          const x1 = Math.round(segmentX * bounds.width);
+          if (random(PIXEL_SEED + layerIndex * 53, segment, fieldIndex, 18) < gapChance) continue;
           const pixelRowWidth =
-            segmentWidth * bounds.width * (0.72 + localInfluence * (layer === "far" ? 1.65 : 2.2));
+            segmentWidth * bounds.width * (0.7 + localInfluence * (1.25 + style.pixelScale));
           const pixelRowHeight = Math.max(
             1,
             Math.round(
               cellHeight *
-                (layer === "far" ? 0.09 : 0.14) *
-                (1 + localInfluence * (layer === "far" ? 0.45 : 0.7)),
+                (0.07 + style.pixelScale * 0.06) *
+                (1 + localInfluence * (0.34 + style.pixelScale * 0.28)),
             ),
           );
-          const py = lineY * bounds.height;
-          context.globalAlpha =
-            (layer === "far" ? 0.28 : 0.62) + localInfluence * (layer === "far" ? 0.18 : 0.26);
+          context.globalAlpha = Math.min(
+            1,
+            style.opacityBase + style.opacityRange * 0.65 + localInfluence * style.activationAlpha,
+          );
           context.fillRect(
-            x1,
-            Math.round(py - pixelRowHeight / 2),
+            Math.round(segmentX * bounds.width),
+            Math.round(field.y * bounds.height - pixelRowHeight / 2),
             Math.max(1, Math.round(pixelRowWidth)),
             pixelRowHeight,
           );
@@ -303,15 +568,19 @@ export default function HalftoneMountain() {
       });
     });
     context.globalAlpha = 1;
-  }, [isMobile, position, renderVersion, seed]);
+  }, [isMobile]);
+
+  useEffect(() => {
+    draw();
+  }, [draw]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const observer = new ResizeObserver(() => setRenderVersion((version) => version + 1));
+    const observer = new ResizeObserver(draw);
     observer.observe(canvas);
     return () => observer.disconnect();
-  }, []);
+  }, [draw]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -319,17 +588,21 @@ export default function HalftoneMountain() {
     const observer = new IntersectionObserver(
       ([entry]) => {
         isVisibleRef.current = entry.isIntersecting;
-        if (!entry.isIntersecting) setPosition(null);
+        if (!entry.isIntersecting) {
+          positionRef.current = null;
+          draw();
+        }
       },
       { threshold: 0.05 },
     );
     observer.observe(canvas);
     return () => observer.disconnect();
-  }, []);
+  }, [draw]);
 
   useEffect(
     () => () => {
-      if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
+      if (pointerFrameRef.current !== null) cancelAnimationFrame(pointerFrameRef.current);
+      if (morphFrameRef.current !== null) cancelAnimationFrame(morphFrameRef.current);
       if (recoveryRef.current) clearTimeout(recoveryRef.current);
     },
     [],
@@ -337,31 +610,63 @@ export default function HalftoneMountain() {
 
   const recover = useCallback(() => {
     if (recoveryRef.current) clearTimeout(recoveryRef.current);
-    recoveryRef.current = setTimeout(() => setPosition(null), 420);
-  }, []);
+    recoveryRef.current = setTimeout(() => {
+      positionRef.current = null;
+      draw();
+    }, 420);
+  }, [draw]);
 
   const updatePosition = useCallback(
     (event: PointerEvent<HTMLCanvasElement>) => {
       if (reducedMotion || !isVisibleRef.current) return;
       const bounds = event.currentTarget.getBoundingClientRect();
-      const nextPosition = {
+      positionRef.current = {
         x: (event.clientX - bounds.left) / bounds.width,
         y: (event.clientY - bounds.top) / bounds.height,
       };
-      if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
-      frameRef.current = requestAnimationFrame(() => setPosition(nextPosition));
+      if (pointerFrameRef.current !== null) cancelAnimationFrame(pointerFrameRef.current);
+      pointerFrameRef.current = requestAnimationFrame(draw);
       recover();
     },
-    [recover, reducedMotion],
+    [draw, recover, reducedMotion],
   );
+
+  const regenerate = useCallback(() => {
+    const activeComposition = interpolateMountain(
+      previousCompositionRef.current,
+      currentCompositionRef.current,
+      morphProgressRef.current,
+    );
+    seedRef.current = nextSeed(seedRef.current);
+    previousCompositionRef.current = activeComposition;
+    currentCompositionRef.current = generateMountain(seedRef.current);
+
+    if (morphFrameRef.current !== null) cancelAnimationFrame(morphFrameRef.current);
+    if (reducedMotion) {
+      previousCompositionRef.current = currentCompositionRef.current;
+      morphProgressRef.current = 1;
+      draw();
+      return;
+    }
+
+    morphProgressRef.current = 0;
+    const startedAt = performance.now();
+    const morph = (now: number) => {
+      const progress = Math.min(1, (now - startedAt) / MORPH_DURATION);
+      morphProgressRef.current = easeOutCubic(progress);
+      draw();
+      if (progress < 1) morphFrameRef.current = requestAnimationFrame(morph);
+    };
+    morphFrameRef.current = requestAnimationFrame(morph);
+  }, [draw, reducedMotion]);
 
   return (
     <div className="halftone-mountain-shell">
       <canvas
         ref={canvasRef}
-        className={`halftone-mountain${position ? " is-recalculating" : ""}`}
+        className="halftone-mountain"
         aria-hidden="true"
-        onClick={() => !reducedMotion && setSeed((currentSeed) => nextSeed(currentSeed))}
+        onClick={regenerate}
         onPointerDown={updatePosition}
         onPointerLeave={recover}
         onPointerMove={(event) => event.pointerType === "mouse" && updatePosition(event)}
