@@ -51,6 +51,7 @@ type LayerStyle = {
   peakMax: number;
   foot: number;
   lineCount: number;
+  squareRowCount: number;
   lineGap: number;
   xStart: number;
   xEnd: number;
@@ -69,7 +70,8 @@ const LAYER_STYLES: Record<Layer, LayerStyle> = {
     peakMin: 0.2,
     peakMax: 0.27,
     foot: 0.8,
-    lineCount: 2,
+    lineCount: 3,
+    squareRowCount: 1,
     lineGap: 0.4,
     xStart: 0.03,
     xEnd: 0.97,
@@ -86,7 +88,8 @@ const LAYER_STYLES: Record<Layer, LayerStyle> = {
     peakMin: 0.27,
     peakMax: 0.36,
     foot: 0.86,
-    lineCount: 3,
+    lineCount: 4,
+    squareRowCount: 1,
     lineGap: 0.32,
     xStart: 0.05,
     xEnd: 0.95,
@@ -103,7 +106,8 @@ const LAYER_STYLES: Record<Layer, LayerStyle> = {
     peakMin: 0.33,
     peakMax: 0.43,
     foot: 0.91,
-    lineCount: 3,
+    lineCount: 5,
+    squareRowCount: 2,
     lineGap: 0.25,
     xStart: 0.07,
     xEnd: 0.93,
@@ -120,7 +124,8 @@ const LAYER_STYLES: Record<Layer, LayerStyle> = {
     peakMin: 0.34,
     peakMax: 0.44,
     foot: 0.97,
-    lineCount: 4,
+    lineCount: 6,
+    squareRowCount: 2,
     lineGap: 0.18,
     xStart: 0.06,
     xEnd: 0.94,
@@ -549,6 +554,8 @@ export default function HalftoneMountain() {
       }
 
       layerComposition.lines.forEach((field, fieldIndex) => {
+        const isSquareReplacement =
+          fieldIndex >= style.lineCount - style.squareRowCount;
         const segmentCount = Math.max(3, Math.round((field.end - field.start) * grid.columns));
         const segmentWidth = (field.end - field.start) / segmentCount;
         for (let segment = 0; segment < segmentCount; segment += 1) {
@@ -570,16 +577,33 @@ export default function HalftoneMountain() {
           const activation = localInfluence * hazeStrengthRef.current;
           const gapChance = Math.max(0.01, field.gap - activation * 0.28);
           if (random(PIXEL_SEED + layerIndex * 53, segment, fieldIndex, 18) < gapChance) continue;
-          const pixelRowWidth =
-            segmentWidth * bounds.width * (0.7 + activation * (0.52 + style.pixelScale * 0.42));
-          const pixelRowHeight = Math.max(
-            1,
-            Math.round(
+          const replacementSize =
+            Math.min(cellWidth, cellHeight) * (0.48 + activation * 0.22);
+          const pixelRowWidth = isSquareReplacement
+            ? replacementSize
+            : segmentWidth *
+              bounds.width *
+              (0.7 + activation * (0.52 + style.pixelScale * 0.42));
+          const pixelRowHeight = isSquareReplacement
+            ? replacementSize
+            : Math.max(
+                1,
+                Math.round(
+                  cellHeight *
+                    (0.07 + style.pixelScale * 0.06) *
+                    (1 + activation * (0.14 + style.pixelScale * 0.16)),
+                ),
+              );
+          const replacementJitterX = isSquareReplacement
+            ? (random(PIXEL_SEED + layerIndex * 31, segment, fieldIndex, 29) - 0.5) *
+              cellWidth *
+              0.22
+            : 0;
+          const replacementJitterY = isSquareReplacement
+            ? (random(PIXEL_SEED + layerIndex * 37, segment, fieldIndex, 31) - 0.5) *
               cellHeight *
-                (0.07 + style.pixelScale * 0.06) *
-                (1 + activation * (0.14 + style.pixelScale * 0.16)),
-            ),
-          );
+              0.9
+            : 0;
           context.globalAlpha = Math.min(
             1,
             (style.opacityBase +
@@ -588,8 +612,10 @@ export default function HalftoneMountain() {
               lineFootFade,
           );
           context.fillRect(
-            Math.round(segmentX * bounds.width),
-            Math.round(field.y * bounds.height - pixelRowHeight / 2),
+            Math.round(segmentX * bounds.width + replacementJitterX),
+            Math.round(
+              field.y * bounds.height + replacementJitterY - pixelRowHeight / 2,
+            ),
             Math.max(1, Math.round(pixelRowWidth)),
             pixelRowHeight,
           );
