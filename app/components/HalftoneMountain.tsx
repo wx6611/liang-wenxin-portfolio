@@ -6,7 +6,7 @@ const DESKTOP_GRID = { columns: 82, rows: 36 };
 const MOBILE_GRID = { columns: 56, rows: 28 };
 const INITIAL_SEED = 6611;
 const PIXEL_SEED = 9437;
-const INTERACTION_RADIUS = 0.245;
+const INTERACTION_RADIUS = 0.32;
 const CLICK_MORPH_DURATION = 760;
 const AUTO_MORPH_DURATION = 12000;
 const HAZE_FADE_DURATION = 560;
@@ -63,9 +63,9 @@ const LAYER_STYLES: Record<Layer, LayerStyle> = {
     opacityBase: 0.18,
     opacityRange: 0.12,
     activationAlpha: 0.14,
-    densityBoost: 0.3,
-    fadeStart: 0.6,
-    fadeEnd: 0.78,
+    densityBoost: 0.38,
+    fadeStart: 0.7,
+    fadeEnd: 0.8,
     peakMin: 0.2,
     peakMax: 0.27,
     foot: 0.8,
@@ -80,9 +80,9 @@ const LAYER_STYLES: Record<Layer, LayerStyle> = {
     opacityBase: 0.28,
     opacityRange: 0.14,
     activationAlpha: 0.17,
-    densityBoost: 0.35,
-    fadeStart: 0.66,
-    fadeEnd: 0.84,
+    densityBoost: 0.44,
+    fadeStart: 0.75,
+    fadeEnd: 0.86,
     peakMin: 0.27,
     peakMax: 0.36,
     foot: 0.86,
@@ -97,9 +97,9 @@ const LAYER_STYLES: Record<Layer, LayerStyle> = {
     opacityBase: 0.42,
     opacityRange: 0.18,
     activationAlpha: 0.2,
-    densityBoost: 0.4,
-    fadeStart: 0.7,
-    fadeEnd: 0.88,
+    densityBoost: 0.5,
+    fadeStart: 0.8,
+    fadeEnd: 0.9,
     peakMin: 0.33,
     peakMax: 0.43,
     foot: 0.91,
@@ -114,9 +114,9 @@ const LAYER_STYLES: Record<Layer, LayerStyle> = {
     opacityBase: 0.58,
     opacityRange: 0.22,
     activationAlpha: 0.26,
-    densityBoost: 0.46,
-    fadeStart: 0.76,
-    fadeEnd: 0.94,
+    densityBoost: 0.58,
+    fadeStart: 0.85,
+    fadeEnd: 0.95,
     peakMin: 0.4,
     peakMax: 0.5,
     foot: 0.96,
@@ -516,7 +516,7 @@ export default function HalftoneMountain() {
           const visibleChance = Math.min(
             0.98,
             silhouetteChance * (0.14 + footFade * 0.86) +
-              activation * style.densityBoost * 0.18,
+              activation * style.densityBoost * 0.42,
           );
           if (random(PIXEL_SEED + layerIndex * 97, column, row, 0) > visibleChance) continue;
 
@@ -529,14 +529,14 @@ export default function HalftoneMountain() {
           const footScale = 0.43 + footFade * 0.57;
           const sizeBoost = 0.48 + style.pixelScale * 0.24;
           const activatedScale =
-            pixelScale * sizeNoise * footScale * (1 + activation * sizeBoost * 0.18);
+            pixelScale * sizeNoise * footScale * (1 + activation * sizeBoost * 0.36);
           const pixelWidth = cellWidth * Math.min(0.86, activatedScale);
           const pixelHeight = cellHeight * Math.min(0.82, activatedScale);
           const fadeAlpha = 0.34 + footFade * 0.66;
           context.globalAlpha = Math.min(
             1,
             (style.opacityBase + baseDensity * style.opacityRange) * fadeAlpha +
-              activation * style.activationAlpha * 0.14,
+              activation * style.activationAlpha * 0.26,
           );
           context.fillRect(
             Math.round((column + 0.5) * cellWidth + jitterX - pixelWidth / 2),
@@ -555,6 +555,8 @@ export default function HalftoneMountain() {
           const mountainRidge = ridge(layer, layerComposition, segmentX);
           const foot = layerFoot(layer, layerComposition, segmentX);
           if (field.y < mountainRidge - 0.014 || field.y > foot + 0.014) continue;
+          const lineFootFade = 1 - smoothStep(style.fadeStart, style.fadeEnd, field.y);
+          if (lineFootFade <= 0.02) continue;
           const localInfluence = positionRef.current
             ? smoothFalloff(
                 Math.hypot(
@@ -565,23 +567,24 @@ export default function HalftoneMountain() {
               )
             : 0;
           const activation = localInfluence * hazeStrengthRef.current;
-          const gapChance = Math.max(0.01, field.gap - activation * 0.12);
+          const gapChance = Math.max(0.01, field.gap - activation * 0.28);
           if (random(PIXEL_SEED + layerIndex * 53, segment, fieldIndex, 18) < gapChance) continue;
           const pixelRowWidth =
-            segmentWidth * bounds.width * (0.7 + activation * (0.18 + style.pixelScale * 0.24));
+            segmentWidth * bounds.width * (0.7 + activation * (0.52 + style.pixelScale * 0.42));
           const pixelRowHeight = Math.max(
             1,
             Math.round(
               cellHeight *
                 (0.07 + style.pixelScale * 0.06) *
-                (1 + activation * (0.07 + style.pixelScale * 0.1)),
+                (1 + activation * (0.14 + style.pixelScale * 0.16)),
             ),
           );
           context.globalAlpha = Math.min(
             1,
-              style.opacityBase +
+            (style.opacityBase +
               style.opacityRange * 0.65 +
-              activation * style.activationAlpha * 0.14,
+              activation * style.activationAlpha * 0.24) *
+              (0.26 + lineFootFade * 0.74),
           );
           context.fillRect(
             Math.round(segmentX * bounds.width),
@@ -599,9 +602,9 @@ export default function HalftoneMountain() {
       const centerX = hazePosition.x * bounds.width;
       const centerY = hazePosition.y * bounds.height;
       const lobes = [
-        { x: 0, y: 0, radius: 0.14, alpha: 0.3 },
-        { x: -0.05, y: 0.018, radius: 0.1, alpha: 0.18 },
-        { x: 0.058, y: -0.014, radius: 0.085, alpha: 0.14 },
+        { x: 0, y: 0, radius: 0.17, alpha: 0.38 },
+        { x: -0.058, y: 0.022, radius: 0.12, alpha: 0.24 },
+        { x: 0.068, y: -0.016, radius: 0.1, alpha: 0.18 },
       ];
 
       context.save();
