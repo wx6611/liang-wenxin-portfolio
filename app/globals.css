@@ -605,6 +605,13 @@ footer{flex-direction:column;gap:10px}
   background:var(--paper);
   mix-blend-mode:darken;
 }
+.hankou-article [data-image-key="asset-hankou-resource-map.webp"] .editable-image-stage{
+  isolation:isolate;
+  background:var(--paper);
+}
+.hankou-article [data-image-key="asset-hankou-resource-map.webp"] img.editor-uploaded-image{
+  filter:brightness(1.1) contrast(1.08);
+}
 .hankou-editor.is-editing [data-image-key]{
   position:relative;
   cursor:pointer;
