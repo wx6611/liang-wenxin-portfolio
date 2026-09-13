@@ -188,17 +188,22 @@ function ChapterCopy({ section }: { section: Section }) {
 function AssetFigure({ asset }: { asset: string }) {
   const isReal = realAssets.has(asset);
   return (
-    <figure className={isReal ? "media-figure has-media" : "media-figure is-pending"}>
-      {isReal ? (
-        <img
-          src={`/images/hankou/${asset}`}
-          alt={realAlt[asset] || ""}
-          width="1600"
-          height="1000"
-        />
-      ) : (
-        <div className="placeholder-box">Asset slot</div>
-      )}
+    <figure
+      className={isReal ? "media-figure has-media" : "media-figure is-pending"}
+      data-image-key={`asset-${asset}`}
+    >
+      <div className="editable-image-stage">
+        {isReal ? (
+          <img
+            src={`/images/hankou/${asset}`}
+            alt={realAlt[asset] || ""}
+            width="1600"
+            height="1000"
+          />
+        ) : (
+          <div className="placeholder-box">Asset slot</div>
+        )}
+      </div>
       <figcaption data-edit-key={`asset-${asset}-caption`}>{asset}</figcaption>
     </figure>
   );
@@ -211,8 +216,19 @@ function ChapterMedia({ section }: { section: Section }) {
     return (
       <div className="editorial-scenes">
         {section.scenes?.map((scene, index) => (
-          <figure className={`scene scene-${index + 1}`} key={scene.asset}>
-            <img src={`/images/hankou/${scene.asset}`} alt={scene.alt} width="1122" height="1402" />
+          <figure
+            className={`scene scene-${index + 1}`}
+            data-image-key={`scene-${index + 1}`}
+            key={scene.asset}
+          >
+            <div className="editable-image-stage">
+              <img
+                src={`/images/hankou/${scene.asset}`}
+                alt={scene.alt}
+                width="1122"
+                height="1402"
+              />
+            </div>
             <figcaption>
               <h3 data-edit-key={`scene-${index + 1}-title`}>{scene.title}</h3>
               <p data-edit-key={`scene-${index + 1}-description`}>{scene.description}</p>
@@ -227,8 +243,14 @@ function ChapterMedia({ section }: { section: Section }) {
     return (
       <div className="chapter-assets poster-grid">
         {section.posters?.map((poster, index) => (
-          <figure className="media-figure is-pending" key={poster.asset}>
-            <div className="placeholder-box">Asset slot</div>
+          <figure
+            className="media-figure is-pending"
+            data-image-key={`poster-${index + 1}`}
+            key={poster.asset}
+          >
+            <div className="editable-image-stage">
+              <div className="placeholder-box">Asset slot</div>
+            </div>
             <figcaption>
               <span data-edit-key={`poster-${index + 1}-asset`}>{poster.asset}</span>
               <h3 data-edit-key={`poster-${index + 1}-title`}>{poster.title}</h3>
@@ -278,13 +300,15 @@ export default function Hankou() {
             </p>
           </section>
 
-          <figure className="project-hero-media">
-            <img
-              src="/portfolio/hankou-story.png"
-              alt="汉口在场品牌策略与体验系统图"
-              width="3216"
-              height="2180"
-            />
+          <figure className="project-hero-media" data-image-key="project-hero">
+            <div className="editable-image-stage">
+              <img
+                src="/portfolio/hankou-story.png"
+                alt="汉口在场品牌策略与体验系统图"
+                width="3216"
+                height="2180"
+              />
+            </div>
           </figure>
 
           <nav className="chapter-index" aria-label="项目章节">

@@ -654,15 +654,70 @@ footer{flex-direction:column;gap:10px}
   outline-color:color-mix(in srgb,var(--ink) 55%,transparent);
   background:color-mix(in srgb,var(--paper) 88%,var(--ink));
 }
+.editable-image-stage img.editor-adjusted-image{
+  display:block;
+  width:100%;
+  height:100%;
+  object-fit:var(--editor-image-fit,contain);
+  object-position:var(--editor-image-x,50%) var(--editor-image-y,50%);
+  transform:scale(var(--editor-image-scale,1));
+  transform-origin:var(--editor-image-x,50%) var(--editor-image-y,50%);
+}
+.hankou-editor.is-editing [data-image-key]{
+  position:relative;
+  cursor:pointer;
+  outline:1px solid transparent;
+  outline-offset:6px;
+  transition:outline-color 140ms ease;
+}
+.hankou-editor.is-editing [data-image-key]:hover,
+.hankou-editor.is-editing [data-image-key]:focus-visible{
+  outline-color:color-mix(in srgb,var(--ink) 38%,transparent);
+}
+.hankou-editor.is-editing [data-image-key].is-selected{
+  outline-color:var(--ink);
+}
+.hankou-editor.is-editing [data-image-key]::after{
+  content:"选择图片";
+  position:absolute;
+  z-index:2;
+  top:10px;
+  right:10px;
+  padding:6px 8px;
+  border:1px solid var(--ink);
+  background:var(--paper);
+  color:var(--ink);
+  font-size:10px;
+  line-height:1;
+  letter-spacing:.03em;
+  opacity:0;
+  pointer-events:none;
+  transition:opacity 140ms ease;
+}
+.hankou-editor.is-editing [data-image-key]:hover::after,
+.hankou-editor.is-editing [data-image-key]:focus-visible::after,
+.hankou-editor.is-editing [data-image-key].is-selected::after{
+  opacity:1;
+}
+.hankou-editor.is-editing .editable-image-stage{
+  overflow:hidden;
+}
+.hankou-editor-file-input{
+  position:fixed;
+  width:1px;
+  height:1px;
+  opacity:0;
+  pointer-events:none;
+}
 .hankou-editor-toolbar{
   position:fixed;
   z-index:10;
-  right:20px;
+  left:50%;
   bottom:20px;
   display:flex;
-  align-items:center;
-  gap:24px;
-  padding:10px 10px 10px 16px;
+  flex-direction:column;
+  width:min(920px,calc(100% - 40px));
+  transform:translateX(-50%);
   border:1px solid var(--ink);
   background:var(--paper);
   color:var(--ink);
@@ -672,6 +727,14 @@ footer{flex-direction:column;gap:10px}
 }
 .hankou-editor-toolbar[hidden]{
   display:none;
+}
+.hankou-editor-mainbar{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  width:100%;
+  gap:24px;
+  padding:10px 10px 10px 16px;
 }
 .hankou-editor-status{
   display:flex;
@@ -685,12 +748,14 @@ footer{flex-direction:column;gap:10px}
 .hankou-editor-status span{
   opacity:.58;
 }
-.hankou-editor-actions{
+.hankou-editor-actions,
+.hankou-image-controls{
   display:flex;
   align-items:center;
   gap:6px;
 }
-.hankou-editor-actions button{
+.hankou-editor-actions button,
+.hankou-image-controls button{
   min-height:36px;
   padding:8px 13px;
   border:1px solid var(--ink);
@@ -702,28 +767,67 @@ footer{flex-direction:column;gap:10px}
   cursor:pointer;
   transition:background-color 160ms ease,color 160ms ease,opacity 160ms ease,transform 100ms ease;
 }
-.hankou-editor-actions button:hover{
+.hankou-editor-actions button:hover,
+.hankou-image-controls button:hover{
   background:var(--paper);
   color:var(--ink);
 }
-.hankou-editor-actions button:active{
+.hankou-editor-actions button:active,
+.hankou-image-controls button:active{
   transform:translateY(1px);
 }
-.hankou-editor-actions button:focus-visible{
+.hankou-editor-actions button:focus-visible,
+.hankou-image-controls button:focus-visible,
+.hankou-image-controls input:focus-visible{
   outline:2px solid var(--ink);
   outline-offset:3px;
 }
-.hankou-editor-actions button:disabled{
+.hankou-editor-actions button:disabled,
+.hankou-image-controls button:disabled{
   cursor:not-allowed;
   opacity:.42;
+  pointer-events:none;
 }
-.hankou-editor-actions button.is-secondary{
+.hankou-editor-actions button.is-loading,
+.hankou-image-controls button.is-loading{
+  min-width:84px;
+  cursor:wait;
+  opacity:.64;
+  pointer-events:none;
+}
+.hankou-editor-actions button.is-secondary,
+.hankou-image-controls button.is-secondary{
   border-color:transparent;
   background:transparent;
   color:var(--ink);
 }
-.hankou-editor-actions button.is-secondary:hover{
+.hankou-editor-actions button.is-secondary:hover,
+.hankou-image-controls button.is-secondary:hover{
   border-color:var(--ink);
+}
+.hankou-image-controls{
+  width:100%;
+  padding:9px 10px;
+  border-bottom:1px solid var(--ink);
+}
+.hankou-image-name{
+  padding:0 7px 0 4px;
+  white-space:nowrap;
+  opacity:.58;
+}
+.hankou-image-controls label{
+  display:grid;
+  grid-template-columns:auto 88px;
+  align-items:center;
+  gap:7px;
+  min-width:0;
+  padding:0 5px;
+  white-space:nowrap;
+}
+.hankou-image-controls input[type="range"]{
+  width:88px;
+  accent-color:var(--ink);
+  cursor:ew-resize;
 }
 
 @media(max-width:767px){
@@ -731,6 +835,12 @@ footer{flex-direction:column;gap:10px}
     right:10px;
     bottom:10px;
     left:10px;
+    width:auto;
+    max-height:48svh;
+    overflow:auto;
+    transform:none;
+  }
+  .hankou-editor-mainbar{
     justify-content:space-between;
     gap:10px;
     padding:8px 8px 8px 12px;
@@ -748,11 +858,29 @@ footer{flex-direction:column;gap:10px}
     min-height:34px;
     padding:7px 9px;
   }
+  .hankou-image-controls{
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:7px;
+  }
+  .hankou-image-name{
+    grid-column:1/-1;
+  }
+  .hankou-image-controls label{
+    grid-template-columns:42px 1fr;
+    padding:4px;
+  }
+  .hankou-image-controls input[type="range"]{
+    width:100%;
+  }
 }
 
 @media(prefers-reduced-motion:reduce){
   .hankou-editor.is-editing [data-edit-key],
-  .hankou-editor-actions button{
+  .hankou-editor.is-editing [data-image-key],
+  .hankou-editor.is-editing [data-image-key]::after,
+  .hankou-editor-actions button,
+  .hankou-image-controls button{
     transition:none;
   }
 }
