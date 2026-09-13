@@ -619,7 +619,7 @@ footer{flex-direction:column;gap:10px}
 .hankou-article .section-07 .media-figure:nth-child(2) img{
   width:100%;
   height:100%;
-  object-fit:cover;
+  object-fit:contain;
 }
 .hankou-article .section-07 .media-figure:nth-child(3) .editable-image-stage{
   width:100%;
