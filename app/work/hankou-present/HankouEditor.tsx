@@ -14,11 +14,29 @@ const TEXT_STORAGE_KEY = "hankou-present-content-v1";
 const IMAGE_SETTINGS_KEY = "hankou-present-image-settings-v1";
 const IMAGE_DATABASE = "hankou-present-images";
 const IMAGE_STORE = "images";
+const SYNC_BUNDLE_FORMAT = "hankou-present-sync";
+const SYNC_BUNDLE_VERSION = 1;
 
-type EditorStatus = "ready" | "editing" | "saved" | "exported" | "error";
+type EditorStatus =
+  | "ready"
+  | "editing"
+  | "saved"
+  | "exported"
+  | "sync-exported"
+  | "sync-error"
+  | "error";
 type ImageFit = "contain" | "cover";
 type ImageSettings = { fit: ImageFit; zoom: number; x: number; y: number };
 type StoredImage = { key: string; blob: Blob; name: string };
+type PortableImage = { key: string; name: string; dataUrl: string };
+type SyncBundle = {
+  format: typeof SYNC_BUNDLE_FORMAT;
+  version: typeof SYNC_BUNDLE_VERSION;
+  exportedAt: string;
+  text: Record<string, string>;
+  imageSettings: Record<string, ImageSettings>;
+  images: PortableImage[];
+};
 
 const DEFAULT_IMAGE_SETTINGS: ImageSettings = { fit: "contain", zoom: 100, x: 50, y: 50 };
 
@@ -116,6 +134,82 @@ function blobToDataUrl(blob: Blob) {
   });
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function parseImageSettings(value: unknown): Record<string, ImageSettings> | null {
+  if (!isRecord(value)) return null;
+  const parsed: Record<string, ImageSettings> = {};
+  for (const [key, setting] of Object.entries(value)) {
+    if (!isRecord(setting)) return null;
+    const { fit, zoom, x, y } = setting;
+    if (
+      (fit !== "contain" && fit !== "cover") ||
+      typeof zoom !== "number" ||
+      typeof x !== "number" ||
+      typeof y !== "number" ||
+      !Number.isFinite(zoom) ||
+      !Number.isFinite(x) ||
+      !Number.isFinite(y)
+    ) {
+      return null;
+    }
+    parsed[key] = {
+      fit,
+      zoom: Math.min(200, Math.max(100, zoom)),
+      x: Math.min(100, Math.max(0, x)),
+      y: Math.min(100, Math.max(0, y)),
+    };
+  }
+  return parsed;
+}
+
+function parseSyncBundle(value: unknown): SyncBundle | null {
+  if (!isRecord(value)) return null;
+  if (value.format !== SYNC_BUNDLE_FORMAT || value.version !== SYNC_BUNDLE_VERSION) return null;
+  if (!isRecord(value.text) || !Array.isArray(value.images)) return null;
+
+  const text: Record<string, string> = {};
+  for (const [key, content] of Object.entries(value.text)) {
+    if (typeof content !== "string") return null;
+    text[key] = content;
+  }
+
+  const imageSettings = parseImageSettings(value.imageSettings);
+  if (!imageSettings) return null;
+
+  const images: PortableImage[] = [];
+  for (const image of value.images) {
+    if (
+      !isRecord(image) ||
+      typeof image.key !== "string" ||
+      typeof image.name !== "string" ||
+      typeof image.dataUrl !== "string" ||
+      !image.dataUrl.startsWith("data:image/")
+    ) {
+      return null;
+    }
+    images.push({ key: image.key, name: image.name, dataUrl: image.dataUrl });
+  }
+
+  return {
+    format: SYNC_BUNDLE_FORMAT,
+    version: SYNC_BUNDLE_VERSION,
+    exportedAt: typeof value.exportedAt === "string" ? value.exportedAt : "",
+    text,
+    imageSettings,
+    images,
+  };
+}
+
+async function dataUrlToImageBlob(dataUrl: string) {
+  const response = await fetch(dataUrl);
+  const blob = await response.blob();
+  if (!blob.type.startsWith("image/")) throw new Error("Invalid image data");
+  return blob;
+}
+
 function makeAbsoluteAttributes(root: HTMLElement) {
   root.querySelectorAll<HTMLElement>("[src], [href]").forEach((element) => {
     for (const attribute of ["src", "href"] as const) {
@@ -189,6 +283,7 @@ export default function HankouEditor({ children }: { children: ReactNode }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const toolbarRef = useRef<HTMLElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const syncInputRef = useRef<HTMLInputElement>(null);
   const imageSettingsRef = useRef<Record<string, ImageSettings>>({});
   const imageBlobsRef = useRef<Map<string, Blob>>(new Map());
   const originalStagesRef = useRef<Map<string, string>>(new Map());
@@ -478,6 +573,92 @@ ${clone.outerHTML}
     }
   }
 
+  async function exportSyncBundle() {
+    if (!rootRef.current) return;
+    try {
+      setIsBusy(true);
+      const storedImages = await getStoredImages();
+      const images = await Promise.all(
+        storedImages.map(async ({ key, blob, name }) => ({
+          key,
+          name,
+          dataUrl: await blobToDataUrl(blob),
+        })),
+      );
+      const bundle: SyncBundle = {
+        format: SYNC_BUNDLE_FORMAT,
+        version: SYNC_BUNDLE_VERSION,
+        exportedAt: new Date().toISOString(),
+        text: getEditableValues(rootRef.current),
+        imageSettings: imageSettingsRef.current,
+        images,
+      };
+      window.localStorage.setItem(TEXT_STORAGE_KEY, JSON.stringify(bundle.text));
+      window.localStorage.setItem(IMAGE_SETTINGS_KEY, JSON.stringify(bundle.imageSettings));
+
+      const blob = new Blob([JSON.stringify(bundle)], { type: "application/json;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const download = document.createElement("a");
+      download.href = url;
+      download.download = "hankou-present-sync.json";
+      document.body.appendChild(download);
+      download.click();
+      download.remove();
+      URL.revokeObjectURL(url);
+      setStatus("sync-exported");
+    } catch {
+      setStatus("sync-error");
+    } finally {
+      setIsBusy(false);
+    }
+  }
+
+  async function importSyncBundle(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file || !rootRef.current) return;
+    if (file.size > 150 * 1024 * 1024) {
+      setStatus("sync-error");
+      return;
+    }
+
+    try {
+      const bundle = parseSyncBundle(JSON.parse(await file.text()) as unknown);
+      if (!bundle) throw new Error("Invalid sync bundle");
+
+      const allowedImageKeys = new Set(
+        Array.from(rootRef.current.querySelectorAll<HTMLElement>("[data-image-key]"))
+          .map((element) => element.dataset.imageKey)
+          .filter((key): key is string => Boolean(key)),
+      );
+      if (bundle.images.some((image) => !allowedImageKeys.has(image.key))) {
+        throw new Error("Unknown image slot");
+      }
+
+      const importedImages = await Promise.all(
+        bundle.images.map(async (image) => ({
+          key: image.key,
+          name: image.name,
+          blob: await dataUrlToImageBlob(image.dataUrl),
+        })),
+      );
+      const confirmed = window.confirm(
+        "导入同步包会替换当前浏览器中保存的汉口在场文字、图片和图片位置。继续导入？",
+      );
+      if (!confirmed) return;
+
+      setIsBusy(true);
+      await clearStoredImages();
+      for (const image of importedImages) await storeImage(image);
+      window.localStorage.setItem(TEXT_STORAGE_KEY, JSON.stringify(bundle.text));
+      window.localStorage.setItem(IMAGE_SETTINGS_KEY, JSON.stringify(bundle.imageSettings));
+      window.location.reload();
+    } catch {
+      setStatus("sync-error");
+      setIsBusy(false);
+    }
+  }
+
   async function resetChanges() {
     const confirmed = window.confirm("恢复为网站中的默认内容？保存的文字和上传图片都会被清除。");
     if (!confirmed) return;
@@ -502,6 +683,8 @@ ${clone.outerHTML}
     editing: "有未保存修改",
     saved: "已保存到此浏览器",
     exported: "HTML 已导出",
+    "sync-exported": "同步包已导出，可在另一浏览器导入",
+    "sync-error": "同步包无效或导入失败",
     error: "操作失败，请重试",
   }[status];
 
@@ -520,6 +703,14 @@ ${clone.outerHTML}
         accept="image/*"
         onChange={handleImageUpload}
         ref={fileInputRef}
+        tabIndex={-1}
+      />
+      <input
+        className="hankou-editor-file-input"
+        type="file"
+        accept=".json,application/json"
+        onChange={importSyncBundle}
+        ref={syncInputRef}
         tabIndex={-1}
       />
 
@@ -603,6 +794,22 @@ ${clone.outerHTML}
           <div className="hankou-editor-actions">
             <button type="button" disabled={isBusy} onClick={saveEditorState}>
               保存
+            </button>
+            <button
+              className="is-secondary"
+              type="button"
+              disabled={isBusy}
+              onClick={exportSyncBundle}
+            >
+              导出同步包
+            </button>
+            <button
+              className="is-secondary"
+              type="button"
+              disabled={isBusy}
+              onClick={() => syncInputRef.current?.click()}
+            >
+              导入同步包
             </button>
             <button
               className={isBusy ? "is-loading" : undefined}

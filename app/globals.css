@@ -665,7 +665,7 @@ footer{flex-direction:column;gap:10px}
   bottom:20px;
   display:flex;
   flex-direction:column;
-  width:min(920px,calc(100% - 40px));
+  width:min(1120px,calc(100% - 40px));
   transform:translateX(-50%);
   border:1px solid var(--ink);
   background:var(--paper);
@@ -702,6 +702,10 @@ footer{flex-direction:column;gap:10px}
   display:flex;
   align-items:center;
   gap:6px;
+}
+.hankou-editor-actions{
+  flex-wrap:wrap;
+  justify-content:flex-end;
 }
 .hankou-editor-actions button,
 .hankou-image-controls button{
