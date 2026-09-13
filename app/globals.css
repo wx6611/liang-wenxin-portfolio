@@ -665,7 +665,7 @@ footer{flex-direction:column;gap:10px}
 }
 .editable-image-stage img.editor-uploaded-image{
   background:var(--paper);
-  mix-blend-mode:multiply;
+  mix-blend-mode:darken;
 }
 .hankou-editor.is-editing [data-image-key]{
   position:relative;
