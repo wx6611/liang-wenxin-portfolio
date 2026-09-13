@@ -15,7 +15,6 @@ type Poster = {
 
 type Section = {
   number: string;
-  title: string;
   type: "text" | "scenes" | "slots" | "posters";
   kicker: string;
   heading?: string;
@@ -28,7 +27,6 @@ type Section = {
 const sections: Section[] = [
   {
     number: "01",
-    title: "The Place",
     type: "slots",
     kicker: "THE PLACE",
     heading: "从地方开始",
@@ -37,7 +35,6 @@ const sections: Section[] = [
   },
   {
     number: "02",
-    title: "Frame",
     type: "slots",
     kicker: "FRAME",
     heading: "从资源到体验",
@@ -46,7 +43,6 @@ const sections: Section[] = [
   },
   {
     number: "03",
-    title: "Hankou Present",
     type: "text",
     kicker: "HANKOU PRESENT",
     heading: "汉口在场",
@@ -54,7 +50,6 @@ const sections: Section[] = [
   },
   {
     number: "04",
-    title: "Four Scenes",
     type: "scenes",
     kicker: "FOUR SCENES",
     scenes: [
@@ -86,7 +81,6 @@ const sections: Section[] = [
   },
   {
     number: "05",
-    title: "Visual Language",
     type: "slots",
     kicker: "VISUAL LANGUAGE",
     heading: "把地方变成可识别的语言",
@@ -101,7 +95,6 @@ const sections: Section[] = [
   },
   {
     number: "06",
-    title: "Poster System",
     type: "posters",
     kicker: "POSTER SYSTEM",
     heading: "四个城市现场",
@@ -114,7 +107,6 @@ const sections: Section[] = [
   },
   {
     number: "07",
-    title: "Into the Street",
     type: "slots",
     kicker: "INTO THE STREET",
     heading: "让视觉进入真实街道",
@@ -127,7 +119,6 @@ const sections: Section[] = [
   },
   {
     number: "08",
-    title: "Into Daily Life",
     type: "slots",
     kicker: "INTO DAILY LIFE",
     heading: "从看到，到带走",
@@ -136,7 +127,6 @@ const sections: Section[] = [
   },
   {
     number: "09",
-    title: "Digital Experience",
     type: "slots",
     kicker: "DIGITAL EXPERIENCE",
     heading: "把街区继续组织进一次游览",
@@ -166,6 +156,13 @@ const realAlt: Record<string, string> = {
   "hankou-visual-language-overview.webp": "汉口在场街区品牌主视觉概念与视觉符号系统",
 };
 
+const assetTitles: Record<string, string> = {
+  "symbol-commerce.svg": "商通四海",
+  "symbol-street.svg": "街走百年",
+  "symbol-flavor.svg": "百味生香",
+  "symbol-performance.svg": "万象登场",
+};
+
 function ChapterCopy({ section }: { section: Section }) {
   return (
     <div className="section-copy">
@@ -187,6 +184,7 @@ function ChapterCopy({ section }: { section: Section }) {
 
 function AssetFigure({ asset }: { asset: string }) {
   const isReal = realAssets.has(asset);
+  const title = assetTitles[asset];
   return (
     <figure
       className={isReal ? "media-figure has-media" : "media-figure is-pending"}
@@ -204,7 +202,12 @@ function AssetFigure({ asset }: { asset: string }) {
           <div className="placeholder-box">Asset slot</div>
         )}
       </div>
-      <figcaption data-edit-key={`asset-${asset}-caption`}>{asset}</figcaption>
+      <figcaption className={title ? "asset-caption" : "asset-caption filename-only"}>
+        <span className="asset-filename" data-edit-key={`asset-${asset}-filename`}>
+          {asset}
+        </span>
+        {title && <h3 data-edit-key={`asset-${asset}-title`}>{title}</h3>}
+      </figcaption>
     </figure>
   );
 }
@@ -252,7 +255,9 @@ function ChapterMedia({ section }: { section: Section }) {
               <div className="placeholder-box">Asset slot</div>
             </div>
             <figcaption>
-              <span data-edit-key={`poster-${index + 1}-asset`}>{poster.asset}</span>
+              <span className="asset-filename" data-edit-key={`poster-${index + 1}-asset`}>
+                {poster.asset}
+              </span>
               <h3 data-edit-key={`poster-${index + 1}-title`}>{poster.title}</h3>
             </figcaption>
           </figure>
@@ -280,9 +285,6 @@ export default function Hankou() {
 
         <article>
           <section className="project-intro">
-            <p className="project-code" data-edit-key="hero-code">
-              W / 003
-            </p>
             <h1>
               <span className="project-title-en" data-edit-key="hero-title-en">
                 HANKOU PRESENT
@@ -310,15 +312,6 @@ export default function Hankou() {
               />
             </div>
           </figure>
-
-          <nav className="chapter-index" aria-label="项目章节">
-            {sections.map((section) => (
-              <a href={`#section-${section.number}`} key={section.number}>
-                <span>{section.number}</span>
-                <span data-edit-key={`index-${section.number}`}>{section.title}</span>
-              </a>
-            ))}
-          </nav>
 
           {sections.map((section) => (
             <section

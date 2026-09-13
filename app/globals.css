@@ -224,21 +224,6 @@ footer{flex-direction:column;gap:10px}
   padding:clamp(96px,14vh,180px) var(--project-gutter) clamp(88px,12vh,150px);
   text-align:center;
 }
-.hankou-article .project-code{
-  margin:0 0 clamp(38px,6vh,72px);
-  font-size:12px;
-  line-height:1;
-  letter-spacing:.08em;
-}
-.hankou-article .project-code::before{
-  content:"";
-  display:inline-block;
-  width:7px;
-  height:7px;
-  margin-right:10px;
-  background:currentColor;
-  vertical-align:1px;
-}
 .hankou-article .project-intro h1{
   margin:0;
   font-size:clamp(54px,8.2vw,126px);
@@ -279,40 +264,6 @@ footer{flex-direction:column;gap:10px}
   width:100%;
   height:auto;
   background:#fff;
-}
-.hankou-article .chapter-index{
-  display:grid;
-  grid-template-columns:repeat(3,1fr);
-  width:min(calc(100% - var(--project-gutter) * 2),var(--project-width));
-  margin:0 auto;
-  border-top:1px solid var(--rule);
-  border-bottom:1px solid var(--rule);
-}
-.hankou-article .chapter-index a{
-  display:grid;
-  grid-template-columns:34px 1fr;
-  gap:12px;
-  min-width:0;
-  padding:16px 18px;
-  border-bottom:1px solid var(--rule);
-  font-size:13px;
-  line-height:1.25;
-  transition:background-color 200ms ease,color 200ms ease;
-}
-.hankou-article .chapter-index a:nth-child(3n+2),
-.hankou-article .chapter-index a:nth-child(3n+3){
-  border-left:1px solid var(--rule);
-}
-.hankou-article .chapter-index a:nth-last-child(-n+3){
-  border-bottom:0;
-}
-.hankou-article .chapter-index a:hover{
-  color:var(--paper);
-  background:var(--ink);
-}
-.hankou-article .chapter-index a span:first-child{
-  font-variant-numeric:tabular-nums;
-  opacity:.55;
 }
 .hankou-article .hankou-section{
   display:block;
@@ -385,6 +336,26 @@ footer{flex-direction:column;gap:10px}
   line-height:1.4;
   color:color-mix(in srgb,var(--ink) 55%,transparent);
 }
+.hankou-article .asset-caption h3{
+  margin:0;
+  color:var(--ink);
+  font-size:20px;
+  font-weight:400;
+  line-height:1.25;
+}
+.hankou-article .asset-filename,
+.hankou-article .asset-caption.filename-only{
+  display:none;
+}
+.hankou-editor.is-editing .asset-filename{
+  display:inline;
+}
+.hankou-editor.is-editing .asset-caption.filename-only{
+  display:block;
+}
+.hankou-editor.is-editing .asset-caption .asset-filename + h3{
+  margin-top:8px;
+}
 .hankou-article .placeholder-box{
   display:flex;
   align-items:center;
@@ -393,14 +364,18 @@ footer{flex-direction:column;gap:10px}
   min-height:clamp(260px,34vw,520px);
   border:0;
   background:color-mix(in srgb,var(--ink) 4%,transparent);
+  color:transparent;
+  font-size:0;
+  letter-spacing:.06em;
+}
+.hankou-editor.is-editing .placeholder-box{
   color:color-mix(in srgb,var(--ink) 45%,transparent);
   font-size:11px;
-  letter-spacing:.06em;
 }
 .hankou-article .section-03{
   display:flex;
   align-items:center;
-  min-height:78svh;
+  min-height:60svh;
 }
 .hankou-article .section-03 .section-copy{
   width:min(100%,1040px);
@@ -413,43 +388,28 @@ footer{flex-direction:column;gap:10px}
 .hankou-article .section-03 .section-copy .body{
   max-width:1000px;
   margin-top:clamp(46px,8vh,90px);
-  font-size:clamp(34px,4.6vw,68px);
+  font-size:clamp(30px,4vw,58px);
   line-height:1.2;
   letter-spacing:-.035em;
 }
 .hankou-article .editorial-scenes{
   display:grid;
-  grid-template-columns:repeat(12,minmax(0,1fr));
-  gap:clamp(70px,10vw,150px) 18px;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:16px;
 }
 .hankou-article .editorial-scenes .scene{
   width:auto;
   margin:0;
 }
-.hankou-article .editorial-scenes .scene-1{
-  grid-column:5/-1;
-}
-.hankou-article .editorial-scenes .scene-2{
-  grid-column:1/7;
-}
-.hankou-article .editorial-scenes .scene-3{
-  grid-column:7/-1;
-  margin-top:clamp(64px,9vw,128px);
-}
-.hankou-article .editorial-scenes .scene-4{
-  grid-column:2/11;
-}
 .hankou-article .editorial-scenes .scene img{
   display:block;
   width:100%;
   height:auto;
-  aspect-ratio:auto;
-  object-fit:contain;
+  aspect-ratio:4/5;
+  object-fit:cover;
 }
 .hankou-article .editorial-scenes .scene figcaption{
-  display:grid;
-  grid-template-columns:minmax(96px,1fr) 2fr;
-  gap:24px;
+  display:block;
   margin-top:16px;
 }
 .hankou-article .editorial-scenes .scene h3,
@@ -522,9 +482,6 @@ footer{flex-direction:column;gap:10px}
     padding-top:84px;
     padding-bottom:76px;
   }
-  .hankou-article .project-code{
-    margin-bottom:34px;
-  }
   .hankou-article .project-intro h1{
     font-size:clamp(48px,15vw,76px);
     line-height:.92;
@@ -552,24 +509,6 @@ footer{flex-direction:column;gap:10px}
     width:132%;
     max-width:none;
     margin-left:-16%;
-  }
-  .hankou-article .chapter-index{
-    grid-template-columns:repeat(2,1fr);
-  }
-  .hankou-article .chapter-index a,
-  .hankou-article .chapter-index a:nth-child(3n+2),
-  .hankou-article .chapter-index a:nth-child(3n+3){
-    border-right:0;
-    border-bottom:1px solid var(--rule);
-    border-left:0;
-    padding:14px 12px;
-    font-size:12px;
-  }
-  .hankou-article .chapter-index a:nth-child(even){
-    border-left:1px solid var(--rule);
-  }
-  .hankou-article .chapter-index a:last-child{
-    border-bottom:0;
   }
   .hankou-article .hankou-section{
     padding-top:88px;
@@ -607,24 +546,23 @@ footer{flex-direction:column;gap:10px}
     margin-bottom:0;
   }
   .hankou-article .section-03{
-    min-height:68svh;
+    min-height:58svh;
   }
   .hankou-article .section-03 .section-copy .body{
     margin-top:44px;
     font-size:clamp(36px,10.5vw,52px);
   }
   .hankou-article .editorial-scenes{
-    display:block;
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:32px 16px;
   }
   .hankou-article .editorial-scenes .scene-1,
   .hankou-article .editorial-scenes .scene-2,
   .hankou-article .editorial-scenes .scene-3,
   .hankou-article .editorial-scenes .scene-4{
     width:100%;
-    margin:0 0 76px;
-  }
-  .hankou-article .editorial-scenes .scene:last-child{
-    margin-bottom:0;
+    margin:0;
   }
   .hankou-article .editorial-scenes .scene figcaption{
     grid-template-columns:1fr;
