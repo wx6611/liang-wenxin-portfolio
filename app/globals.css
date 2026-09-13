@@ -663,6 +663,10 @@ footer{flex-direction:column;gap:10px}
   transform:scale(var(--editor-image-scale,1));
   transform-origin:var(--editor-image-x,50%) var(--editor-image-y,50%);
 }
+.editable-image-stage img.editor-uploaded-image{
+  background:var(--paper);
+  mix-blend-mode:multiply;
+}
 .hankou-editor.is-editing [data-image-key]{
   position:relative;
   cursor:pointer;
