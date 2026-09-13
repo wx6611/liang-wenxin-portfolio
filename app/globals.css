@@ -256,14 +256,22 @@ footer{flex-direction:column;gap:10px}
   text-align:left;
 }
 .hankou-article .project-hero-media{
-  width:min(calc(100% - var(--project-gutter) * 2),var(--project-width));
+  width:min(92vw,1500px);
   margin:0 auto clamp(104px,14vh,180px);
+}
+.hankou-article .project-hero-media .editable-image-stage{
+  width:100%;
+  max-width:100%;
+  height:min(70vh,900px);
+  overflow:hidden;
 }
 .hankou-article .project-hero-media img{
   display:block;
   width:100%;
-  height:auto;
+  height:100%;
   background:#fff;
+  object-fit:cover;
+  object-position:center;
 }
 .hankou-article .hankou-section{
   display:block;
@@ -313,6 +321,41 @@ footer{flex-direction:column;gap:10px}
   display:grid;
   grid-template-columns:repeat(12,minmax(0,1fr));
   gap:18px;
+}
+.hankou-article .section-01 .section-copy,
+.hankou-article .section-02 .section-copy{
+  margin-bottom:56px;
+}
+.hankou-article .section-01 .chapter-assets{
+  width:min(88vw,1380px);
+  max-width:100%;
+  margin:0 auto;
+}
+.hankou-article .section-02 .chapter-assets{
+  width:min(85vw,1320px);
+  max-width:100%;
+  margin:0 auto;
+}
+.hankou-article .section-01 .editable-image-stage,
+.hankou-article .section-02 .editable-image-stage{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  width:100%;
+  aspect-ratio:16/9;
+  overflow:hidden;
+}
+.hankou-article .section-01 .editable-image-stage{
+  max-height:78vh;
+}
+.hankou-article .section-02 .editable-image-stage{
+  max-height:74vh;
+}
+.hankou-article .section-01 .editable-image-stage img,
+.hankou-article .section-02 .editable-image-stage img{
+  width:100%;
+  height:100%;
+  object-fit:contain;
 }
 .hankou-article .media-figure{
   grid-column:span 6;
@@ -378,7 +421,8 @@ footer{flex-direction:column;gap:10px}
   min-height:60svh;
 }
 .hankou-article .section-03 .section-copy{
-  width:min(100%,1040px);
+  width:100%;
+  max-width:1320px;
   margin:auto;
   padding:0;
 }
@@ -386,11 +430,12 @@ footer{flex-direction:column;gap:10px}
   font-size:clamp(58px,8vw,118px);
 }
 .hankou-article .section-03 .section-copy .body{
-  max-width:1000px;
+  max-width:1320px;
   margin-top:clamp(46px,8vh,90px);
-  font-size:clamp(30px,4vw,58px);
+  font-size:clamp(30px,3.6vw,52px);
   line-height:1.2;
   letter-spacing:-.035em;
+  text-wrap:pretty;
 }
 .hankou-article .editorial-scenes{
   display:grid;
@@ -505,10 +550,14 @@ footer{flex-direction:column;gap:10px}
     margin-bottom:84px;
     overflow:hidden;
   }
+  .hankou-article .project-hero-media .editable-image-stage{
+    height:clamp(300px,52vh,520px);
+  }
   .hankou-article .project-hero-media img{
-    width:132%;
-    max-width:none;
-    margin-left:-16%;
+    width:100%;
+    max-width:100%;
+    margin-left:0;
+    object-fit:cover;
   }
   .hankou-article .hankou-section{
     padding-top:88px;
@@ -517,6 +566,16 @@ footer{flex-direction:column;gap:10px}
   .hankou-article .section-copy{
     width:100%;
     margin:0 0 48px;
+  }
+  .hankou-article .section-01 .chapter-assets,
+  .hankou-article .section-02 .chapter-assets{
+    width:100%;
+    max-width:none;
+  }
+  .hankou-article .section-01 .editable-image-stage,
+  .hankou-article .section-02 .editable-image-stage{
+    height:auto;
+    max-height:none;
   }
   .hankou-article .section-label{
     margin-bottom:22px;
