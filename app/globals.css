@@ -246,7 +246,11 @@ footer{flex-direction:column;gap:10px}
   line-height:.88;
   letter-spacing:-.06em;
 }
-.hankou-article .project-intro h1 span{
+.hankou-article .project-intro h1 .project-title-en{
+  display:block;
+  font-size:1em;
+}
+.hankou-article .project-intro h1 .project-title-cn{
   display:block;
   margin-top:.14em;
   font-size:.72em;
@@ -525,7 +529,7 @@ footer{flex-direction:column;gap:10px}
     font-size:clamp(48px,15vw,76px);
     line-height:.92;
   }
-  .hankou-article .project-intro h1 span{
+  .hankou-article .project-intro h1 .project-title-cn{
     margin-top:.22em;
     font-size:.7em;
   }
@@ -633,5 +637,122 @@ footer{flex-direction:column;gap:10px}
     background:var(--paper);
     backdrop-filter:none;
     -webkit-backdrop-filter:none;
+  }
+}
+
+/* Hankou browser editing mode */
+.hankou-editor.is-editing [data-edit-key]{
+  cursor:text;
+  outline:1px solid transparent;
+  outline-offset:4px;
+  transition:background-color 160ms ease,outline-color 160ms ease;
+}
+.hankou-editor.is-editing [data-edit-key]:hover{
+  background:color-mix(in srgb,var(--ink) 5%,transparent);
+}
+.hankou-editor.is-editing [data-edit-key]:focus{
+  outline-color:color-mix(in srgb,var(--ink) 55%,transparent);
+  background:color-mix(in srgb,var(--paper) 88%,var(--ink));
+}
+.hankou-editor-toolbar{
+  position:fixed;
+  z-index:10;
+  right:20px;
+  bottom:20px;
+  display:flex;
+  align-items:center;
+  gap:24px;
+  padding:10px 10px 10px 16px;
+  border:1px solid var(--ink);
+  background:var(--paper);
+  color:var(--ink);
+  box-shadow:0 12px 34px color-mix(in srgb,var(--ink) 13%,transparent);
+  font-size:12px;
+  line-height:1.2;
+}
+.hankou-editor-toolbar[hidden]{
+  display:none;
+}
+.hankou-editor-status{
+  display:flex;
+  flex-direction:column;
+  gap:3px;
+  min-width:126px;
+}
+.hankou-editor-status strong{
+  font-weight:500;
+}
+.hankou-editor-status span{
+  opacity:.58;
+}
+.hankou-editor-actions{
+  display:flex;
+  align-items:center;
+  gap:6px;
+}
+.hankou-editor-actions button{
+  min-height:36px;
+  padding:8px 13px;
+  border:1px solid var(--ink);
+  border-radius:0;
+  background:var(--ink);
+  color:var(--paper);
+  font:inherit;
+  white-space:nowrap;
+  cursor:pointer;
+  transition:background-color 160ms ease,color 160ms ease,opacity 160ms ease,transform 100ms ease;
+}
+.hankou-editor-actions button:hover{
+  background:var(--paper);
+  color:var(--ink);
+}
+.hankou-editor-actions button:active{
+  transform:translateY(1px);
+}
+.hankou-editor-actions button:focus-visible{
+  outline:2px solid var(--ink);
+  outline-offset:3px;
+}
+.hankou-editor-actions button:disabled{
+  cursor:not-allowed;
+  opacity:.42;
+}
+.hankou-editor-actions button.is-secondary{
+  border-color:transparent;
+  background:transparent;
+  color:var(--ink);
+}
+.hankou-editor-actions button.is-secondary:hover{
+  border-color:var(--ink);
+}
+
+@media(max-width:767px){
+  .hankou-editor-toolbar{
+    right:10px;
+    bottom:10px;
+    left:10px;
+    justify-content:space-between;
+    gap:10px;
+    padding:8px 8px 8px 12px;
+  }
+  .hankou-editor-status{
+    min-width:0;
+  }
+  .hankou-editor-status span{
+    display:none;
+  }
+  .hankou-editor-actions{
+    gap:4px;
+  }
+  .hankou-editor-actions button{
+    min-height:34px;
+    padding:7px 9px;
+  }
+}
+
+@media(prefers-reduced-motion:reduce){
+  .hankou-editor.is-editing [data-edit-key],
+  .hankou-editor-actions button{
+    transition:none;
   }
 }

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import HankouEditor from "./HankouEditor";
 
 type Scene = {
   title: string;
@@ -169,11 +170,17 @@ function ChapterCopy({ section }: { section: Section }) {
   return (
     <div className="section-copy">
       <p className="section-label">
-        <span>{section.number}</span>
-        <span>{section.kicker}</span>
+        <span data-edit-key={`section-${section.number}-number`}>{section.number}</span>
+        <span data-edit-key={`section-${section.number}-kicker`}>{section.kicker}</span>
       </p>
-      {section.heading && <h2>{section.heading}</h2>}
-      {section.body && <p className="body">{section.body}</p>}
+      {section.heading && (
+        <h2 data-edit-key={`section-${section.number}-heading`}>{section.heading}</h2>
+      )}
+      {section.body && (
+        <p className="body" data-edit-key={`section-${section.number}-body`}>
+          {section.body}
+        </p>
+      )}
     </div>
   );
 }
@@ -192,7 +199,7 @@ function AssetFigure({ asset }: { asset: string }) {
       ) : (
         <div className="placeholder-box">Asset slot</div>
       )}
-      <figcaption>{asset}</figcaption>
+      <figcaption data-edit-key={`asset-${asset}-caption`}>{asset}</figcaption>
     </figure>
   );
 }
@@ -207,8 +214,8 @@ function ChapterMedia({ section }: { section: Section }) {
           <figure className={`scene scene-${index + 1}`} key={scene.asset}>
             <img src={`/images/hankou/${scene.asset}`} alt={scene.alt} width="1122" height="1402" />
             <figcaption>
-              <h3>{scene.title}</h3>
-              <p>{scene.description}</p>
+              <h3 data-edit-key={`scene-${index + 1}-title`}>{scene.title}</h3>
+              <p data-edit-key={`scene-${index + 1}-description`}>{scene.description}</p>
             </figcaption>
           </figure>
         ))}
@@ -219,12 +226,12 @@ function ChapterMedia({ section }: { section: Section }) {
   if (section.type === "posters") {
     return (
       <div className="chapter-assets poster-grid">
-        {section.posters?.map((poster) => (
+        {section.posters?.map((poster, index) => (
           <figure className="media-figure is-pending" key={poster.asset}>
             <div className="placeholder-box">Asset slot</div>
             <figcaption>
-              <span>{poster.asset}</span>
-              <h3>{poster.title}</h3>
+              <span data-edit-key={`poster-${index + 1}-asset`}>{poster.asset}</span>
+              <h3 data-edit-key={`poster-${index + 1}-title`}>{poster.title}</h3>
             </figcaption>
           </figure>
         ))}
@@ -241,63 +248,71 @@ function ChapterMedia({ section }: { section: Section }) {
 
 export default function Hankou() {
   return (
-    <main className="hankou hankou-article">
-      <header className="project-header">
-        <Link href="/">← Home</Link>
-        <span>HANKOU PRESENT</span>
-        <span>WUHAN · 2026</span>
-      </header>
+    <HankouEditor>
+      <main className="hankou hankou-article">
+        <header className="project-header">
+          <Link href="/">← Home</Link>
+          <span data-edit-key="header-title">HANKOU PRESENT</span>
+          <span data-edit-key="header-year">WUHAN · 2026</span>
+        </header>
 
-      <article>
-        <section className="project-intro">
-          <p className="project-code">W / 003</p>
-          <h1>
-            HANKOU PRESENT
-            <span>汉口在场</span>
-          </h1>
-          <p className="eyebrow">
-            NEIGHBORHOOD BRANDING · CULTURAL RESEARCH · VISUAL SYSTEM · EXPERIENCE DESIGN ·
-            WUHAN · 2026
-          </p>
-          <p className="summary">
-            江汉路与中山大道一带汇集了近代金融建筑、商业地标、历史里分、地方饮食、文化设施与滨江公共空间。这个项目从街区已有的文化与生活资源出发，重新组织人认识和经历汉口的方式，并将这一叙事继续转化为视觉识别、街区场景、周边产品与数字体验。
-          </p>
-        </section>
-
-        <figure className="project-hero-media">
-          <img
-            src="/portfolio/hankou-story.png"
-            alt="汉口在场品牌策略与体验系统图"
-            width="3216"
-            height="2180"
-          />
-        </figure>
-
-        <nav className="chapter-index" aria-label="项目章节">
-          {sections.map((section) => (
-            <a href={`#section-${section.number}`} key={section.number}>
-              <span>{section.number}</span>
-              <span>{section.title}</span>
-            </a>
-          ))}
-        </nav>
-
-        {sections.map((section) => (
-          <section
-            className={`hankou-section section-${section.number}`}
-            id={`section-${section.number}`}
-            key={section.number}
-          >
-            <ChapterCopy section={section} />
-            <ChapterMedia section={section} />
+        <article>
+          <section className="project-intro">
+            <p className="project-code" data-edit-key="hero-code">
+              W / 003
+            </p>
+            <h1>
+              <span className="project-title-en" data-edit-key="hero-title-en">
+                HANKOU PRESENT
+              </span>
+              <span className="project-title-cn" data-edit-key="hero-title-cn">
+                汉口在场
+              </span>
+            </h1>
+            <p className="eyebrow" data-edit-key="hero-meta">
+              NEIGHBORHOOD BRANDING · CULTURAL RESEARCH · VISUAL SYSTEM · EXPERIENCE DESIGN ·
+              WUHAN · 2026
+            </p>
+            <p className="summary" data-edit-key="hero-summary">
+              江汉路与中山大道一带汇集了近代金融建筑、商业地标、历史里分、地方饮食、文化设施与滨江公共空间。这个项目从街区已有的文化与生活资源出发，重新组织人认识和经历汉口的方式，并将这一叙事继续转化为视觉识别、街区场景、周边产品与数字体验。
+            </p>
           </section>
-        ))}
-      </article>
 
-      <footer>
-        <Link href="/">← Back to Home</Link>
-        <a href="mailto:wenshin66@outlook.com">wenshin66@outlook.com</a>
-      </footer>
-    </main>
+          <figure className="project-hero-media">
+            <img
+              src="/portfolio/hankou-story.png"
+              alt="汉口在场品牌策略与体验系统图"
+              width="3216"
+              height="2180"
+            />
+          </figure>
+
+          <nav className="chapter-index" aria-label="项目章节">
+            {sections.map((section) => (
+              <a href={`#section-${section.number}`} key={section.number}>
+                <span>{section.number}</span>
+                <span data-edit-key={`index-${section.number}`}>{section.title}</span>
+              </a>
+            ))}
+          </nav>
+
+          {sections.map((section) => (
+            <section
+              className={`hankou-section section-${section.number}`}
+              id={`section-${section.number}`}
+              key={section.number}
+            >
+              <ChapterCopy section={section} />
+              <ChapterMedia section={section} />
+            </section>
+          ))}
+        </article>
+
+        <footer>
+          <Link href="/">← Back to Home</Link>
+          <a href="mailto:wenshin66@outlook.com">wenshin66@outlook.com</a>
+        </footer>
+      </main>
+    </HankouEditor>
   );
 }
